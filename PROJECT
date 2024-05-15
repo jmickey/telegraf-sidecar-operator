@@ -5,8 +5,8 @@
 domain: mickey.dev
 layout:
 - go.kubebuilder.io/v4
-projectName: scaffold
-repo: github.com/jmickey/telegraf-sidecar-controller
+projectName: telegraf-sidecar-operator
+repo: github.com/jmickey/telegraf-sidecar-operator
 resources:
 - controller: true
   group: core

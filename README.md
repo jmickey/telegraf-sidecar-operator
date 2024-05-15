@@ -1,4 +1,4 @@
-# scaffold
+# telegraf-sidecar-operator
 // TODO(user): Add simple overview of use/purpose
 
 ## Description
@@ -16,7 +16,7 @@
 **Build and push your image to the location specified by `IMG`:**
 
 ```sh
-make docker-build docker-push IMG=<some-registry>/scaffold:tag
+make docker-build docker-push IMG=<some-registry>/telegraf-sidecar-operator:tag
 ```
 
 **NOTE:** This image ought to be published in the personal registry you specified.
@@ -32,7 +32,7 @@ make install
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
 ```sh
-make deploy IMG=<some-registry>/scaffold:tag
+make deploy IMG=<some-registry>/telegraf-sidecar-operator:tag
 ```
 
 > **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
@@ -73,7 +73,7 @@ Following are the steps to build the installer and distribute this project to us
 1. Build the installer for the image built and published in the registry:
 
 ```sh
-make build-installer IMG=<some-registry>/scaffold:tag
+make build-installer IMG=<some-registry>/telegraf-sidecar-operator:tag
 ```
 
 NOTE: The makefile target mentioned above generates an 'install.yaml'
@@ -86,7 +86,7 @@ its dependencies.
 Users can just run kubectl apply -f <URL for YAML BUNDLE> to install the project, i.e.:
 
 ```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/scaffold/<tag or branch>/dist/install.yaml
+kubectl apply -f https://raw.githubusercontent.com/<org>/telegraf-sidecar-operator/<tag or branch>/dist/install.yaml
 ```
 
 ## Contributing
@@ -111,4 +111,3 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-

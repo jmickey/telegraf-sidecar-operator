@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/jmickey/telegraf-sidecar-controller/test/utils"
+	"github.com/jmickey/telegraf-sidecar-operator/test/utils"
 )
 
 const namespace = "scaffold-system"
