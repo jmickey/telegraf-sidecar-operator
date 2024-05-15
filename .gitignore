@@ -28,3 +28,4 @@ go.work
 
 config/local/certs/*.pem
 config/local/certs/*.csr
+config/local/secret.yaml
