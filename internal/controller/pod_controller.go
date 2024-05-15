@@ -18,18 +18,26 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/jmickey/telegraf-sidecar-operator/internal/k8s"
 )
 
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme               *runtime.Scheme
+	Recorder             record.EventRecorder
+	DefaultClass         string
+	EnableInternalPlugin bool
 }
 
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;create;update;patch;delete
@@ -37,6 +45,13 @@ type PodReconciler struct {
 //+kubebuilder:rbac:groups=core,resources=pods/status,verbs=get;update;patch
 //+kubebuilder:rbac:groups=core,resources=pods/finalizers,verbs=update
 //+kubebuilder:rbac:groups=core,resources=events,verbs=create;patch
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Pod{}).
+		Complete(r)
+}
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -48,16 +63,43 @@ type PodReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.3/pkg/reconcile
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := logf.FromContext(ctx)
 
+	obj := &corev1.Pod{}
+	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
+		log.Error(err, "failed to fetch pod")
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	if !r.shouldAttemptReconcilation(obj) {
+		log.Info("reconciliation skipped, pod doesn't have telegraf container")
+		return ctrl.Result{}, nil
+	}
+
+	secret := &corev1.Secret{}
+	name := types.NamespacedName{
+		Name:      fmt.Sprintf("telegraf-config-%s", obj.GetName()),
+		Namespace: req.Namespace,
+	}
+	if err := r.Get(ctx, name, secret); err == nil {
+		log.Info("reconciliation skipped, telegraf-config secret for pod already exists")
+		return ctrl.Result{}, nil
+	}
+
+	return r.reconcile(ctx, obj)
+}
+func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Result, error) {
 	// TODO(user): your logic here
 
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}).
-		Complete(r)
+func (r *PodReconciler) shouldAttemptReconcilation(pod *corev1.Pod) bool {
+	for key := range pod.GetLabels() {
+		if key == k8s.ContainerInjectedLabel {
+			return true
+		}
+	}
+
+	return false
 }
