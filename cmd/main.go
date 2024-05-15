@@ -36,6 +36,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/controller"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/injectorwebhook"
 	//+kubebuilder:scaffold:imports
@@ -136,6 +137,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	classDataHandler, err := classdata.NewDirectoryHandler(telegrafClassesDirectory)
+	if err != nil {
+		setupLog.Error(err, "failed to initialize class data handler")
+	}
+
 	webhookServer := webhook.NewServer(webhook.Options{
 		TLSOpts: tlsOpts,
 	})
@@ -172,6 +178,7 @@ func main() {
 		Client:               mgr.GetClient(),
 		Scheme:               mgr.GetScheme(),
 		Recorder:             mgr.GetEventRecorderFor("telegraf-sidecar-injector"),
+		ClassDataHandler:     classDataHandler,
 		DefaultClass:         telegrafDefaultClass,
 		EnableInternalPlugin: telegrafEnableIntervalPlugin,
 	}).SetupWithManager(mgr); err != nil {

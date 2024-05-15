@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/k8s"
 )
 
@@ -36,6 +37,7 @@ type PodReconciler struct {
 	client.Client
 	Scheme               *runtime.Scheme
 	Recorder             record.EventRecorder
+	ClassDataHandler     classdata.Handler
 	DefaultClass         string
 	EnableInternalPlugin bool
 }
