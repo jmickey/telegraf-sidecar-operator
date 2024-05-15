@@ -19,12 +19,14 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -35,12 +37,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/controller"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/injectorwebhook"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
+)
+
+const (
+	defaultTelegrafImage          = "docker.io/library/telegraf:1.30-alpine"
+	defaultTelegrafRequestsCPU    = "100m"
+	defaultTelegrafRequestsMemory = "100Mi"
+	defaultTelegrafLimitsCPU      = "200m"
+	defaultTelegrafLimitsMemory   = "300Mi"
 )
 
 func init() {
@@ -55,6 +66,16 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+
+	var telegrafClassesDirectory string
+	var telegrafDefaultClass string
+	var telegrafEnableIntervalPlugin bool
+	var telegrafImage string
+	var telegrafRequestsCPU string
+	var telegrafRequestsMemory string
+	var telegrafLimitsCPU string
+	var telegrafLimitsMemory string
+
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
@@ -63,7 +84,24 @@ func main() {
 	flag.BoolVar(&secureMetrics, "metrics-secure", false,
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
-		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+		"If set, HTTP/2 will be enabled for the metrics and webhook servers.")
+	flag.StringVar(&telegrafClassesDirectory, "telegraf-classes-directory", "/config/classes",
+		"Path to the directory containing telegraf class files.")
+	flag.StringVar(&telegrafDefaultClass, "telegraf-default-class", "default",
+		"Default telegraf class to use.")
+	flag.BoolVar(&telegrafEnableIntervalPlugin, "telegraf-enable-internal-plugin", false,
+		"Enable the telegraf internal plugin in for all sidecar containers. If disabled, can be overwritten using pod annotation.")
+	flag.StringVar(&telegrafImage, "telegraf-image", defaultTelegrafImage,
+		"Telegraf image to inject as a sidecar container.")
+	flag.StringVar(&telegrafRequestsCPU, "telegraf-requests-cpu", defaultTelegrafRequestsCPU,
+		"Default CPU requests for the telegraf sidecar.")
+	flag.StringVar(&telegrafRequestsMemory, "telegraf-requests-memory", defaultTelegrafRequestsMemory,
+		"Default memory requests for the telegraf sidecar.")
+	flag.StringVar(&telegrafLimitsCPU, "telegraf-limits-cpu", defaultTelegrafLimitsCPU,
+		"Default CPU limits for the telegraf sidecar.")
+	flag.StringVar(&telegrafLimitsMemory, "telegraf-limits-memory", defaultTelegrafLimitsMemory,
+		"Default memory limits for the telegraf sidecar.")
+
 	opts := zap.Options{
 		Development: true,
 	}
@@ -86,6 +124,16 @@ func main() {
 	tlsOpts := []func(*tls.Config){}
 	if !enableHTTP2 {
 		tlsOpts = append(tlsOpts, disableHTTP2)
+	}
+
+	if err := validateRequestsAndLimits([]string{
+		telegrafRequestsCPU,
+		telegrafRequestsMemory,
+		telegrafLimitsCPU,
+		telegrafLimitsMemory,
+	}); err != nil {
+		setupLog.Error(err, "failed to validate telegraf resource flag values")
+		os.Exit(1)
 	}
 
 	webhookServer := webhook.NewServer(webhook.Options{
@@ -127,6 +175,19 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)
 	}
+
+	webhook := &injectorwebhook.SidecarInjector{
+		TelegrafImage:  telegrafImage,
+		RequestsCPU:    telegrafRequestsCPU,
+		RequestsMemory: telegrafRequestsMemory,
+		LimitsCPU:      telegrafLimitsCPU,
+		LimitsMemory:   telegrafLimitsMemory,
+	}
+
+	if err = webhook.SetupSidecarInjectorWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create sidecar injector webhook", "component", "injectorwebhook")
+		os.Exit(1)
+	}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -143,4 +204,17 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func validateRequestsAndLimits(resources []string) error {
+	for _, val := range resources {
+		if val != "" {
+			_, err := resource.ParseQuantity(val)
+			if err != nil {
+				return fmt.Errorf("failed to parse resource value: %s, err: %w", val, err)
+			}
+		}
+	}
+
+	return nil
 }
