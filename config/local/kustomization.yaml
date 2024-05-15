@@ -1,0 +1,6 @@
+resources:
+  - ../default
+  - secret.yaml
+
+patches:
+  - path: webhook_cert_patch.yaml
