@@ -1,5 +1,5 @@
 /*
-Copyright 2024.
+Copyright 2024 Josh Michielsen.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -90,6 +90,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	return r.reconcile(ctx, obj)
 }
+
 func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Result, error) {
 	// TODO(user): your logic here
 
