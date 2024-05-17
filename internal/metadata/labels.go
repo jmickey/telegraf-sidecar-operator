@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package metadata
 
 const (
-	ContainerInjectedLabel = Prefix + "/injected"
+	SidecarInjectedLabel = Prefix + "/injected"
 )

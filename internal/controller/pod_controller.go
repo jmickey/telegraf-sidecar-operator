@@ -29,7 +29,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
-	"github.com/jmickey/telegraf-sidecar-operator/internal/k8s"
+	k8s "github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
 // PodReconciler reconciles a Pod object
@@ -92,14 +92,21 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 }
 
 func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Result, error) {
-	// TODO(user): your logic here
+	log := logf.FromContext(ctx)
+
+	telegrafConfig := newTelegrafConfig(r.DefaultClass, r.EnableInternalPlugin)
+	if err := telegrafConfig.applyAnnotationOverrides(obj.GetAnnotations()); err != nil {
+		msg := fmt.Sprintf("one or more warnings were generated when applying telegraf pod annotations: [ %s ]", err.Error())
+		r.Recorder.Event(obj, corev1.EventTypeWarning, "InvalidTelegrafConfiguration", msg)
+		log.Info(msg)
+	}
 
 	return ctrl.Result{}, nil
 }
 
 func (r *PodReconciler) shouldAttemptReconcilation(pod *corev1.Pod) bool {
 	for key := range pod.GetLabels() {
-		if key == k8s.ContainerInjectedLabel {
+		if key == k8s.SidecarInjectedLabel {
 			return true
 		}
 	}

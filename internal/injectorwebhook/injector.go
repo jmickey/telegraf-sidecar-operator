@@ -28,7 +28,7 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/jmickey/telegraf-sidecar-operator/internal/k8s"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
 type SidecarInjector struct {
@@ -83,7 +83,7 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 	if pod.Labels == nil {
 		pod.Labels = make(map[string]string)
 	}
-	pod.Labels[k8s.ContainerInjectedLabel] = "true"
+	pod.Labels[metadata.SidecarInjectedLabel] = "true"
 
 	log.Info("successfully injected telegraf sidecar container into pod")
 	return nil
@@ -95,7 +95,7 @@ func (s *SidecarInjector) shouldInjectContainer(pod *corev1.Pod) bool {
 	}
 
 	for key := range pod.GetAnnotations() {
-		if strings.Contains(key, k8s.Prefix) {
+		if strings.Contains(key, metadata.Prefix) {
 			return true
 		}
 	}

@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/jmickey/telegraf-sidecar-operator/internal/k8s"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
 const (
@@ -66,11 +66,11 @@ func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string)
 }
 
 func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string) {
-	if override, ok := annotations[k8s.SidecarCustomImageAnnotation]; ok {
+	if override, ok := annotations[metadata.SidecarCustomImageAnnotation]; ok {
 		c.image = override
 	}
 
-	if override, ok := annotations[k8s.SidecarRequestsCPUAnnotation]; ok {
+	if override, ok := annotations[metadata.SidecarRequestsCPUAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
 			c.log.Error(err,
@@ -81,7 +81,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		}
 	}
 
-	if override, ok := annotations[k8s.SidecarRequestsMemoryAnnotation]; ok {
+	if override, ok := annotations[metadata.SidecarRequestsMemoryAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
 			c.log.Error(err,
@@ -92,7 +92,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		}
 	}
 
-	if override, ok := annotations[k8s.SidecarLimitsCPUAnnotation]; ok {
+	if override, ok := annotations[metadata.SidecarLimitsCPUAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
 			c.log.Error(err,
@@ -103,7 +103,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		}
 	}
 
-	if override, ok := annotations[k8s.SidecarLimitsMemoryAnnotation]; ok {
+	if override, ok := annotations[metadata.SidecarLimitsMemoryAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
 			c.log.Error(err,

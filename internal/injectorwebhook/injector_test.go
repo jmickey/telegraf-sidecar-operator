@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/jmickey/telegraf-sidecar-operator/internal/k8s"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
 var (
@@ -91,7 +91,7 @@ var _ = Describe("Sidecar injector webhook", func() {
 					Name:      "test-pod",
 					Namespace: "default",
 					Annotations: map[string]string{
-						k8s.TelegrafConfigIntervalAnnotation: "10s",
+						metadata.TelegrafConfigIntervalAnnotation: "10s",
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -135,10 +135,10 @@ var _ = Describe("Sidecar injector webhook", func() {
 
 		It("Should proceed with injection using defaults if resource annotations are invalid", func() {
 			invalidValue := "1000x"
-			pod.Annotations[k8s.SidecarRequestsCPUAnnotation] = invalidValue
-			pod.Annotations[k8s.SidecarLimitsCPUAnnotation] = invalidValue
-			pod.Annotations[k8s.SidecarRequestsMemoryAnnotation] = invalidValue
-			pod.Annotations[k8s.SidecarLimitsMemoryAnnotation] = invalidValue
+			pod.Annotations[metadata.SidecarRequestsCPUAnnotation] = invalidValue
+			pod.Annotations[metadata.SidecarLimitsCPUAnnotation] = invalidValue
+			pod.Annotations[metadata.SidecarRequestsMemoryAnnotation] = invalidValue
+			pod.Annotations[metadata.SidecarLimitsMemoryAnnotation] = invalidValue
 
 			err := k8sClient.Create(testCtx, pod)
 			Expect(err).NotTo(HaveOccurred())
@@ -173,10 +173,10 @@ var _ = Describe("Sidecar injector webhook", func() {
 				overrideLimitsCPU      = "800m"
 				overrideLimitsMemory   = "800Mi"
 			)
-			pod.Annotations[k8s.SidecarRequestsCPUAnnotation] = overrideRequestsCPU
-			pod.Annotations[k8s.SidecarRequestsMemoryAnnotation] = overrideRequestsMemory
-			pod.Annotations[k8s.SidecarLimitsCPUAnnotation] = overrideLimitsCPU
-			pod.Annotations[k8s.SidecarLimitsMemoryAnnotation] = overrideLimitsMemory
+			pod.Annotations[metadata.SidecarRequestsCPUAnnotation] = overrideRequestsCPU
+			pod.Annotations[metadata.SidecarRequestsMemoryAnnotation] = overrideRequestsMemory
+			pod.Annotations[metadata.SidecarLimitsCPUAnnotation] = overrideLimitsCPU
+			pod.Annotations[metadata.SidecarLimitsMemoryAnnotation] = overrideLimitsMemory
 
 			err := k8sClient.Create(testCtx, pod)
 			Expect(err).NotTo(HaveOccurred())
