@@ -1,8 +1,29 @@
-# telegraf-sidecar-operator
-// TODO(user): Add simple overview of use/purpose
+# Telegraf Sidecar Operator
+
+Use Kubernetes Pod annotations to automatically inject and configure Telegraf sidecar containers.
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+The Telegraf Sidecar Operator allows Kubernetes users to automatically inject and configure a telegraf sidecar container into their Pods through the use of Pod annotations.
+
+The operator enables platform operators to centrally manage agent configuration and output credentials, while enabling platform users to customize the aspects of the telegraf configuration the care about - the inputs and tags.
+
+The operator works best when paired with applications that expose metrics through a Prometheus-style HTTP metrics endpoints, but it is not limited to this usecase.
+
+Pod annotations used to customize the sidecar container and configure telegraf are compatible with the existing [telegraf-operator](https://github.com/influxdata/telegraf-operator) project from InfluxData which seems to no longer be maintained, and has multiple unfixed bugs.
+
+The project is **not** a fork of [influxdata/telegraf-operator](https://github.com/influxdata/telegraf-operator), but rather an alternate implementation that aims to address multiple issues fundemental to that operators design.
+
+## Components
+
+The operator consists of two primary components:
+
+1. Mutating Admission Webhook used to inject the sidecar container into newly created Pods.
+2. A controller, which detects when a Pod has been admitted into the cluster with a telegraf sidecar container, and creates a corresponding Kubernetes secret with the telegraf configuration values.
+
+## Status
+
+Project is still in active development, and not yet ready for production usecases. The current focus of development is to achieve feature parity with the InfluxData telegraf-operator (i.e. support all available pod annotations).
 
 ## Getting Started
 
@@ -22,12 +43,6 @@ make docker-build docker-push IMG=<some-registry>/telegraf-sidecar-operator:tag
 **NOTE:** This image ought to be published in the personal registry you specified.
 And it is required to have access to pull the image from the working environment.
 Make sure you have the proper permission to the registry if the above commands don’t work.
-
-**Install the CRDs into the cluster:**
-
-```sh
-make install
-```
 
 **Deploy the Manager to the cluster with the image specified by `IMG`:**
 
