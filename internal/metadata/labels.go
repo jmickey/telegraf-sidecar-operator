@@ -17,5 +17,9 @@ limitations under the License.
 package metadata
 
 const (
-	SidecarInjectedLabel = Prefix + "/injected"
+	SidecarInjectedLabel         = Prefix + "/injected"
+	SecretManagedByLabelKey      = "app.kubernetes.io/managed-by"
+	SecretManagedByLabelValue    = "telegraf-sidecar-operator"
+	TelegrafSecretClassNameLabel = Prefix + "/class"
+	TelegrafSecretPodLabel       = Prefix + "/pod"
 )

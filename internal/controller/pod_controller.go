@@ -21,14 +21,17 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 	k8s "github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
@@ -94,12 +97,54 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	telegrafConfig := newTelegrafConfig(r.DefaultClass, r.EnableInternalPlugin)
+	telegrafConfig := newTelegrafConfig(r.ClassDataHandler, r.DefaultClass, r.EnableInternalPlugin)
 	if err := telegrafConfig.applyAnnotationOverrides(obj.GetAnnotations()); err != nil {
 		msg := fmt.Sprintf("one or more warnings were generated when applying telegraf pod annotations: [ %s ]", err.Error())
-		r.Recorder.Event(obj, corev1.EventTypeWarning, "InvalidTelegrafConfiguration", msg)
+		r.Recorder.Event(obj, corev1.EventTypeWarning, "InvalidAnnotationFormat", msg)
 		log.Info(msg)
 	}
+
+	configData, err := telegrafConfig.buildConfigData()
+	if err != nil {
+		msg := fmt.Sprintf("error building telegraf config: %s", err.Error())
+		r.Recorder.Event(obj, corev1.EventTypeWarning, "InvalidTelegrafConfiguration", msg)
+		log.Info(msg)
+
+		return ctrl.Result{}, fmt.Errorf("error building telegraf configuration: %w", err)
+	}
+
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("telegraf-config-%s", obj.GetName()),
+			Namespace: obj.GetNamespace(),
+			Labels: map[string]string{
+				metadata.TelegrafSecretClassNameLabel: telegrafConfig.class,
+				metadata.TelegrafSecretPodLabel:       obj.GetName(),
+				metadata.SecretManagedByLabelKey:      metadata.SecretManagedByLabelValue,
+			},
+		},
+		Type: "Opaque",
+		StringData: map[string]string{
+			"telegraf.conf": configData,
+		},
+	}
+
+	if err := controllerutil.SetOwnerReference(obj, secret, r.Scheme); err != nil {
+		r.Recorder.Eventf(obj, corev1.EventTypeWarning, "SetOwnerReferenceError",
+			"failed to set owner reference for secret: %s: %s", secret.GetName(), err.Error())
+		log.Error(err, "failed to set owner reference for secret")
+		return ctrl.Result{}, fmt.Errorf("failed to set owner reference for secret: %w", err)
+	}
+
+	if err := r.Client.Create(ctx, secret); err != nil {
+		r.Recorder.Eventf(obj, corev1.EventTypeWarning, "CreateSecretInClusterError",
+			"failed to create secret: %s in cluster: %s", secret.GetName(), err.Error())
+		log.Error(err, "failed to create secret in cluster", "secret", secret.GetName())
+		return ctrl.Result{}, fmt.Errorf("failed to create secret: %s in cluster: %w", secret.GetName(), err)
+	}
+
+	msg := fmt.Sprintf("successfully create telegraf config secret: %s", secret.GetName())
+	r.Recorder.Event(obj, corev1.EventTypeNormal, "TelegrafConfigCreateSuccessful", msg)
 
 	return ctrl.Result{}, nil
 }

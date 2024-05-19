@@ -108,4 +108,9 @@ const (
 	// TelegrafConfigEnableInternalAnnotation enables the "internal"
 	// telegraf plugin. Any non-empty string value is accepted.
 	TelegrafConfigEnableInternalAnnotation = Prefix + "/internal"
+
+	/*
+	 *  Prefix Annotations
+	 */
+
 )

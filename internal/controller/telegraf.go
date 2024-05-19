@@ -23,10 +23,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/influxdata/toml"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
 type telegrafConfig struct {
+	classDataHandler classdata.Handler
+
 	class          string
 	metricsPath    string
 	scheme         string
@@ -34,7 +38,7 @@ type telegrafConfig struct {
 	rawInput       string
 	ports          []uint16
 	interval       time.Duration
-	metricsVersion uint8
+	metricVersion  uint8
 	enableInternal bool
 }
 
@@ -44,17 +48,18 @@ const (
 
 // newTelegrafConfig returns a pointer to a new telegrafConfig with
 // default values initialized.
-func newTelegrafConfig(class string, enableInternal bool) *telegrafConfig {
+func newTelegrafConfig(classDataHandler classdata.Handler, class string, enableInternal bool) *telegrafConfig {
 	return &telegrafConfig{
-		class:          class,
-		metricsPath:    "/metrics",
-		ports:          []uint16{},
-		scheme:         "http",
-		metricsVersion: 1,
-		namepass:       "",
-		interval:       defaultInterval,
-		enableInternal: enableInternal,
-		rawInput:       "",
+		classDataHandler: classDataHandler,
+		class:            class,
+		metricsPath:      "/metrics",
+		ports:            []uint16{},
+		scheme:           "http",
+		metricVersion:    1,
+		namepass:         "",
+		interval:         defaultInterval,
+		enableInternal:   enableInternal,
+		rawInput:         "",
 	}
 }
 
@@ -112,7 +117,7 @@ func (c *telegrafConfig) applyAnnotationOverrides(annotations map[string]string)
 			warnings = append(warnings, fmt.Sprintf("failed to convert value: %s for %s to integer, error: %s",
 				override, metadata.TelegrafConfigMetricVersionAnnotation, err.Error()))
 		} else {
-			c.metricsVersion = uint8(ver)
+			c.metricVersion = uint8(ver)
 		}
 	}
 
@@ -141,4 +146,51 @@ func (c *telegrafConfig) applyAnnotationOverrides(annotations map[string]string)
 	}
 
 	return nil
+}
+
+func (c *telegrafConfig) buildConfigData() (string, error) {
+	var config string
+
+	classData, ok := c.classDataHandler.GetDataForClass(c.class)
+	if !ok {
+		return "", fmt.Errorf("failed to get class data: %s, class name doesn't exist", c.class)
+	}
+
+	config = fmt.Sprintf("%s\n\n", strings.TrimSpace(classData))
+
+	if len(c.ports) > 0 {
+		promConfig := "[[inputs.prometheus]]\n"
+		var urls []string
+
+		for _, port := range c.ports {
+			urls = append(urls, fmt.Sprintf("\"%s://localhost:%d/%s\"", c.scheme, port, c.metricsPath))
+		}
+
+		promConfig = fmt.Sprintf("%s  urls = [%s]\n", promConfig, strings.Join(urls, ", "))
+		promConfig = fmt.Sprintf("%s  interval = %s\n", promConfig, c.interval.String())
+
+		if c.metricVersion > 0 {
+			promConfig = fmt.Sprintf("%s  metric_version = %d\n", promConfig, c.metricVersion)
+		}
+
+		if c.namepass != "" {
+			promConfig = fmt.Sprintf("%s  namepass = %s\n", promConfig, c.namepass)
+		}
+
+		config = fmt.Sprintf("%s%s\n", config, promConfig)
+	}
+
+	if c.enableInternal {
+		config = fmt.Sprintf("%s[[inputs.internal]]\n\n", config)
+	}
+
+	if c.rawInput != "" {
+		config = fmt.Sprintf("%s%s", config, c.rawInput)
+	}
+
+	if _, err := toml.Parse([]byte(config)); err != nil {
+		return "", fmt.Errorf("failed to parse the final telegaf configuration: %w", err)
+	}
+
+	return config, nil
 }
