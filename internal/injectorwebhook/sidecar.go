@@ -137,6 +137,14 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 		},
 		Env: []corev1.EnvVar{
 			{
+				Name: "PODNAME",
+				ValueFrom: &corev1.EnvVarSource{
+					FieldRef: &corev1.ObjectFieldSelector{
+						FieldPath: "metadata.name",
+					},
+				},
+			},
+			{
 				Name: "NODENAME",
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{

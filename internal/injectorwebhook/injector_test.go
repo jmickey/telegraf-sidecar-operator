@@ -70,11 +70,11 @@ var _ = Describe("Sidecar injector webhook", func() {
 				Expect(err).NotTo(HaveOccurred())
 
 				pod = &corev1.Pod{}
-				name := types.NamespacedName{
+				lookupKey := types.NamespacedName{
 					Namespace: "default",
 					Name:      "test-pod",
 				}
-				err = k8sClient.Get(testCtx, name, pod)
+				err = k8sClient.Get(testCtx, lookupKey, pod)
 				ExpectWithOffset(1, err).NotTo(HaveOccurred())
 				for _, c := range pod.Spec.Containers {
 					Expect(c.Name).NotTo(Equal("telegraf"))
@@ -110,11 +110,11 @@ var _ = Describe("Sidecar injector webhook", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			pod = &corev1.Pod{}
-			name := types.NamespacedName{
+			lookupKey := types.NamespacedName{
 				Name:      "test-pod",
 				Namespace: "default",
 			}
-			err = k8sClient.Get(testCtx, name, pod)
+			err = k8sClient.Get(testCtx, lookupKey, pod)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(pod.Spec.Containers)).To(Equal(2))
 			Expect(len(pod.Spec.Volumes)).To(Equal(1))
@@ -144,11 +144,11 @@ var _ = Describe("Sidecar injector webhook", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			pod = &corev1.Pod{}
-			name := types.NamespacedName{
+			lookupKey := types.NamespacedName{
 				Name:      "test-pod",
 				Namespace: "default",
 			}
-			err = k8sClient.Get(testCtx, name, pod)
+			err = k8sClient.Get(testCtx, lookupKey, pod)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(pod.Spec.Containers)).To(Equal(2))
 			Expect(len(pod.Spec.Volumes)).To(Equal(1))
@@ -182,11 +182,11 @@ var _ = Describe("Sidecar injector webhook", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			pod = &corev1.Pod{}
-			name := types.NamespacedName{
+			lookupKey := types.NamespacedName{
 				Name:      "test-pod",
 				Namespace: "default",
 			}
-			err = k8sClient.Get(testCtx, name, pod)
+			err = k8sClient.Get(testCtx, lookupKey, pod)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(len(pod.Spec.Containers)).To(Equal(2))
 			Expect(len(pod.Spec.Volumes)).To(Equal(1))
