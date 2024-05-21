@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -55,6 +56,7 @@ type PodReconciler struct {
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
+		Owns(&corev1.Secret{}).
 		Complete(r)
 }
 
@@ -89,6 +91,11 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if err := r.Get(ctx, name, secret); err == nil {
 		log.Info("reconciliation skipped, telegraf-config secret for pod already exists")
 		return ctrl.Result{}, nil
+	} else {
+		if !apierrors.IsNotFound(err) {
+			log.Error(err, "failed to lookup secret from kubernetes api")
+			return ctrl.Result{}, err
+		}
 	}
 
 	return r.reconcile(ctx, obj)

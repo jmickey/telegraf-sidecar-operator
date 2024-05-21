@@ -163,11 +163,11 @@ func (c *telegrafConfig) buildConfigData() (string, error) {
 		var urls []string
 
 		for _, port := range c.ports {
-			urls = append(urls, fmt.Sprintf("\"%s://localhost:%d/%s\"", c.scheme, port, c.metricsPath))
+			urls = append(urls, fmt.Sprintf("\"%s://localhost:%d%s\"", c.scheme, port, c.metricsPath))
 		}
 
 		promConfig = fmt.Sprintf("%s  urls = [%s]\n", promConfig, strings.Join(urls, ", "))
-		promConfig = fmt.Sprintf("%s  interval = %s\n", promConfig, c.interval.String())
+		promConfig = fmt.Sprintf("%s  interval = \"%s\"\n", promConfig, c.interval.String())
 
 		if c.metricVersion > 0 {
 			promConfig = fmt.Sprintf("%s  metric_version = %d\n", promConfig, c.metricVersion)
