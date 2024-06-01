@@ -62,10 +62,6 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the Pod object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.3/pkg/reconcile
@@ -127,7 +123,8 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 			Labels: map[string]string{
 				metadata.TelegrafSecretClassNameLabel: telegrafConfig.class,
 				metadata.TelegrafSecretPodLabel:       obj.GetName(),
-				metadata.SecretManagedByLabelKey:      metadata.SecretManagedByLabelValue,
+				metadata.SecretManagedByLabelKey:      metadata.ControllerName,
+				metadata.SecretCreatedByLabelKey:      metadata.ControllerName,
 			},
 		},
 		Type: "Opaque",

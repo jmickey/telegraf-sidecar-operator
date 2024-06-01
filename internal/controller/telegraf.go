@@ -75,6 +75,7 @@ func (c *telegrafConfig) applyAnnotationOverrides(annotations map[string]string)
 		c.class = override
 	}
 
+	//nolint:staticcheck
 	if override, ok := annotations[metadata.TelegrafConfigMetricsPortAnnotation]; ok {
 		warnings = append(warnings, fmt.Sprintf("Deprecated: %s will be removed in a future version, use %s instead.",
 			metadata.TelegrafConfigMetricsPortAnnotation, metadata.TelegrafConfigMetricsPortsAnnotation))

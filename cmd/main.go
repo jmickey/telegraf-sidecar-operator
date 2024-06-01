@@ -91,7 +91,8 @@ func main() {
 	flag.StringVar(&telegrafDefaultClass, "telegraf-default-class", "default",
 		"Default telegraf class to use.")
 	flag.BoolVar(&telegrafEnableIntervalPlugin, "telegraf-enable-internal-plugin", false,
-		"Enable the telegraf internal plugin in for all sidecar containers. If disabled, can be overwritten using pod annotation.")
+		"Enable the telegraf internal plugin in for all sidecar containers. "+
+			"If disabled, can be overwritten using pod annotation.")
 	flag.StringVar(&telegrafImage, "telegraf-image", defaultTelegrafImage,
 		"Telegraf image to inject as a sidecar container.")
 	flag.StringVar(&telegrafRequestsCPU, "telegraf-requests-cpu", defaultTelegrafRequestsCPU,
