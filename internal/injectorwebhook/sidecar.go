@@ -19,6 +19,7 @@ package injectorwebhook
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
@@ -32,14 +33,17 @@ const (
 	containerName = "telegraf"
 )
 
+// TODO(@jmickey): find a better way of surfacing
+// non-fatal errors than embedding a logger here.
 type containerConfig struct {
-	image          string
 	requestsCPU    resource.Quantity
 	requestsMemory resource.Quantity
 	limitsCPU      resource.Quantity
 	limitsMemory   resource.Quantity
-
-	log logr.Logger
+	log            logr.Logger
+	image          string
+	env            []corev1.EnvVar
+	envFrom        []corev1.EnvFromSource
 }
 
 func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string) (*containerConfig, error) {
@@ -47,6 +51,34 @@ func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string)
 	c := &containerConfig{
 		image: s.TelegrafImage,
 		log:   logf.FromContext(ctx, "logInstance", "injectorwebhook.sidecar", "pod", podName),
+	}
+
+	// Setup default environment variables for the sidecar
+	c.env = []corev1.EnvVar{
+		{
+			Name: "PODNAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.name",
+				},
+			},
+		},
+		{
+			Name: "NODENAME",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "spec.nodeName",
+				},
+			},
+		},
+		{
+			Name: "NAMESPACE",
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: "metadata.namespace",
+				},
+			},
+		},
 	}
 
 	if c.requestsCPU, err = resource.ParseQuantity(s.RequestsCPU); err != nil {
@@ -113,6 +145,77 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 			c.limitsMemory = q
 		}
 	}
+
+	if secretEnv, ok := annotations[metadata.SidecarEnvSecretAnnotation]; ok {
+		c.envFrom = append(c.envFrom, corev1.EnvFromSource{
+			SecretRef: &corev1.SecretEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: secretEnv,
+				},
+				Optional: func(x bool) *bool { return &x }(true),
+			},
+		})
+	}
+
+	envLiterals := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvLiteralPrefixAnnotation)
+	for name, value := range envLiterals {
+		c.env = append(c.env, corev1.EnvVar{
+			Name:  name,
+			Value: value,
+		})
+	}
+
+	envFieldRefs := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvFieldRefPrefixAnnoation)
+	for name, value := range envFieldRefs {
+		c.env = append(c.env, corev1.EnvVar{
+			Name: name,
+			ValueFrom: &corev1.EnvVarSource{
+				FieldRef: &corev1.ObjectFieldSelector{
+					FieldPath: value,
+				},
+			},
+		})
+	}
+
+	envConfigMapKeyRefs := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
+	for name, value := range envConfigMapKeyRefs {
+		selector := strings.SplitN(value, ".", 2)
+		if len(selector) == 2 {
+			c.env = append(c.env, corev1.EnvVar{
+				Name: name,
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: selector[0],
+						},
+						Key: selector[1],
+					},
+				},
+			})
+		} else {
+			c.log.Info("failed to parse configmapref for %s, invalid value: %s", name, value)
+		}
+	}
+
+	envSecretKeyRefs := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
+	for name, value := range envSecretKeyRefs {
+		selector := strings.SplitN(value, ".", 2)
+		if len(selector) == 2 {
+			c.env = append(c.env, corev1.EnvVar{
+				Name: name,
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: selector[0],
+						},
+						Key: selector[1],
+					},
+				},
+			})
+		} else {
+			c.log.Info("failed to parse secretkeyref for %s, invalid value: %s", name, value)
+		}
+	}
 }
 
 func (c *containerConfig) buildContainerSpec() corev1.Container {
@@ -124,7 +227,6 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 			"--config",
 			"/etc/telegraf/telegraf.conf",
 		},
-		// TODO(@jmickey): Support custom resources annotation, and parse correctly.
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    c.requestsCPU,
@@ -135,32 +237,8 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 				corev1.ResourceMemory: c.limitsMemory,
 			},
 		},
-		Env: []corev1.EnvVar{
-			{
-				Name: "PODNAME",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "metadata.name",
-					},
-				},
-			},
-			{
-				Name: "NODENAME",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "spec.nodeName",
-					},
-				},
-			},
-			{
-				Name: "NAMESPACE",
-				ValueFrom: &corev1.EnvVarSource{
-					FieldRef: &corev1.ObjectFieldSelector{
-						FieldPath: "metadata.namespace",
-					},
-				},
-			},
-		},
+		Env:     c.env,
+		EnvFrom: c.envFrom,
 		VolumeMounts: []corev1.VolumeMount{
 			{
 				Name:      fmt.Sprintf("%s-config", containerName),
@@ -172,4 +250,12 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 	return container
 }
 
-// func GetAnnotationsWithPrefix(annotations map[string]string, prefix string) map[string]string {}
+func getAnnotationsWithPrefix(annotations map[string]string, prefix string) map[string]string {
+	values := make(map[string]string)
+	for k, v := range annotations {
+		if strings.HasPrefix(k, prefix) {
+			values[strings.TrimPrefix(k, prefix)] = v
+		}
+	}
+	return values
+}

@@ -18,7 +18,7 @@ package metadata
 
 const (
 	/*
-	 * Telagraf Sidecar Container Configuration
+	 * Sidecar Container Configuration
 	 */
 
 	// SidecarCustomImageAnnotation can be used to override
@@ -41,8 +41,33 @@ const (
 	// memory limits of the sidecar container.
 	SidecarLimitsMemoryAnnotation = Prefix + "/limits-memory"
 
+	// SidecarEnvSecretAnnotation can be used to mount a secret and
+	// all its keys as environment variables in the sidecar container.
+	SidecarEnvSecretAnnotation = Prefix + "/secret-env"
+
 	/*
-	 * Telagraf Configuration
+	 *  Sidecar Container Prefix Annotations
+	 */
+
+	// SidecarEnvLiteralPrefixAnnotation can be used to add a literal
+	// value as an environment variable to the sidecar container.
+	SidecarEnvLiteralPrefixAnnotation = Prefix + "/env-literal-"
+
+	// SidecarEnvFieldRefPrefixAnnoation can be used to add a Kubernetes
+	// downstream API FieldRef as an environment variable to the sidecar
+	// container.
+	SidecarEnvFieldRefPrefixAnnoation = Prefix + "/env-fieldref-"
+
+	// SidecarEnvConfigMapKeyRefPrefixAnnotation can be used to add a ConfigMap key
+	// value as an environment variable to the sidecar container.
+	SidecarEnvConfigMapKeyRefPrefixAnnotation = Prefix + "/env-configmapkeyref-"
+
+	// SidecarEnvSecretKeyRefPrefixAnnotation can be used to add a Secret key
+	// value as an environment variable to the sidecar container.
+	SidecarEnvSecretKeyRefPrefixAnnotation = Prefix + "/env-secretkeyref-"
+
+	/*
+	 * Telagraf Configuration Annotations
 	 */
 
 	// TelegrafConfigClassAnnotation specifies which telegraf
@@ -110,7 +135,10 @@ const (
 	TelegrafConfigEnableInternalAnnotation = Prefix + "/internal"
 
 	/*
-	 *  Prefix Annotations
+	 * Telagraf Configuration Prefix Annotations
 	 */
 
+	// TelegrafConfigGlobalTagLiteralPrefixAnnotation can be used to a literal value
+	// to the global_tags in the telegraf configuration.
+	TelegrafConfigGlobalTagLiteralPrefixAnnotation = Prefix + "/global-tag-literal-"
 )
