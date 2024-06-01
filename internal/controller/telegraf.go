@@ -189,6 +189,8 @@ func (c *telegrafConfig) buildConfigData() (string, error) {
 		config = fmt.Sprintf("%s%s", config, c.rawInput)
 	}
 
+	config = fmt.Sprintf("%s\n", strings.TrimSpace(config))
+
 	if _, err := toml.Parse([]byte(config)); err != nil {
 		return "", fmt.Errorf("failed to parse the final telegaf configuration: %w", err)
 	}
