@@ -157,7 +157,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		})
 	}
 
-	envLiterals := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvLiteralPrefixAnnotation)
+	envLiterals := metadata.GetAnnotationsWithPrefix(annotations, metadata.SidecarEnvLiteralPrefixAnnotation)
 	for name, value := range envLiterals {
 		c.env = append(c.env, corev1.EnvVar{
 			Name:  name,
@@ -165,7 +165,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		})
 	}
 
-	envFieldRefs := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvFieldRefPrefixAnnoation)
+	envFieldRefs := metadata.GetAnnotationsWithPrefix(annotations, metadata.SidecarEnvFieldRefPrefixAnnoation)
 	for name, value := range envFieldRefs {
 		c.env = append(c.env, corev1.EnvVar{
 			Name: name,
@@ -177,7 +177,8 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		})
 	}
 
-	envConfigMapKeyRefs := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
+	envConfigMapKeyRefs := metadata.GetAnnotationsWithPrefix(annotations,
+		metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
 	for name, value := range envConfigMapKeyRefs {
 		selector := strings.SplitN(value, ".", 2)
 		if len(selector) == 2 {
@@ -197,7 +198,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		}
 	}
 
-	envSecretKeyRefs := getAnnotationsWithPrefix(annotations, metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
+	envSecretKeyRefs := metadata.GetAnnotationsWithPrefix(annotations, metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
 	for name, value := range envSecretKeyRefs {
 		selector := strings.SplitN(value, ".", 2)
 		if len(selector) == 2 {
@@ -248,14 +249,4 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 	}
 
 	return container
-}
-
-func getAnnotationsWithPrefix(annotations map[string]string, prefix string) map[string]string {
-	values := make(map[string]string)
-	for k, v := range annotations {
-		if strings.HasPrefix(k, prefix) {
-			values[strings.TrimPrefix(k, prefix)] = v
-		}
-	}
-	return values
 }

@@ -23,12 +23,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/influxdata/toml"
+	"github.com/BurntSushi/toml"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
-type telegrafConfig struct {
+const (
+	defaultInterval = 10 * time.Second
+)
+
+type annotationValues struct {
 	classDataHandler classdata.Handler
 
 	class          string
@@ -40,16 +44,32 @@ type telegrafConfig struct {
 	interval       time.Duration
 	metricVersion  uint8
 	enableInternal bool
+	globalTags     map[string]string
 }
 
-const (
-	defaultInterval = 10 * time.Second
-)
+type prometheusInput struct {
+	Urls          []string `toml:"urls"`
+	Interval      string   `toml:"interval"`
+	MetricVersion uint8    `toml:"metric_version"`
+	Namepass      []string `toml:"namepass"`
+}
 
-// newTelegrafConfig returns a pointer to a new telegrafConfig with
-// default values initialized.
-func newTelegrafConfig(classDataHandler classdata.Handler, class string, enableInternal bool) *telegrafConfig {
-	return &telegrafConfig{
+type telegrafConfig struct {
+	Agent       map[string]any    `toml:"agent"`
+	Inputs      map[string]any    `toml:"inputs"`
+	Outputs     map[string]any    `toml:"outputs"`
+	Aggregators map[string]any    `toml:"aggregators,omitempty"`
+	Processors  map[string]any    `toml:"processors,omitempty"`
+	GlobalTags  map[string]string `toml:"global_tags"`
+}
+
+type rawInputs struct {
+	Inputs map[string]any `toml:"inputs"`
+}
+
+// newAnnotationValues returns a pointer to a new annotationValues with default values initialized.
+func newAnnotationValues(classDataHandler classdata.Handler, class string, enableInternal bool) *annotationValues {
+	return &annotationValues{
 		classDataHandler: classDataHandler,
 		class:            class,
 		metricsPath:      "/metrics",
@@ -60,12 +80,13 @@ func newTelegrafConfig(classDataHandler classdata.Handler, class string, enableI
 		interval:         defaultInterval,
 		enableInternal:   enableInternal,
 		rawInput:         "",
+		globalTags:       make(map[string]string),
 	}
 }
 
 // applyAnnotationOverrides overrides the existing values of the
 // telegrafConfig based on the provided pod annotations.
-func (c *telegrafConfig) applyAnnotationOverrides(annotations map[string]string) error {
+func (c *annotationValues) applyAnnotationOverrides(annotations map[string]string) error {
 	// Invalid annotation values should not stop the creation of the secret as this will
 	// cause the pod creation to fail indefinitely. Instead collect warnings and use to
 	// return a non-fatal error.
@@ -110,7 +131,7 @@ func (c *telegrafConfig) applyAnnotationOverrides(annotations map[string]string)
 	}
 
 	if override, ok := annotations[metadata.TelegrafConfigMetricsNamepass]; ok {
-		c.namepass = override
+		c.namepass = strings.ReplaceAll(strings.Trim(override, "[]"), "'", "")
 	}
 
 	if override, ok := annotations[metadata.TelegrafConfigMetricVersionAnnotation]; ok {
@@ -141,6 +162,9 @@ func (c *telegrafConfig) applyAnnotationOverrides(annotations map[string]string)
 		c.rawInput = override
 	}
 
+	c.globalTags = metadata.GetAnnotationsWithPrefix(annotations,
+		metadata.TelegrafConfigGlobalTagLiteralPrefixAnnotation)
+
 	if len(warnings) > 0 {
 		errText := strings.Join(warnings, "; ")
 		return errors.New(errText)
@@ -149,51 +173,66 @@ func (c *telegrafConfig) applyAnnotationOverrides(annotations map[string]string)
 	return nil
 }
 
-func (c *telegrafConfig) buildConfigData() (string, error) {
-	var config string
+func (c *annotationValues) buildConfigData() (string, error) {
+	cfg := telegrafConfig{
+		Inputs:     map[string]any{},
+		GlobalTags: map[string]string{},
+	}
 
 	classData, ok := c.classDataHandler.GetDataForClass(c.class)
 	if !ok {
 		return "", fmt.Errorf("failed to get class data: %s, class name doesn't exist", c.class)
 	}
 
-	config = fmt.Sprintf("%s\n\n", strings.TrimSpace(classData))
+	if err := toml.Unmarshal(classData, &cfg); err != nil {
+		return "", fmt.Errorf("failed to unmarshal class data, error: %w", err)
+	}
 
 	if len(c.ports) > 0 {
-		promConfig := "[[inputs.prometheus]]\n"
-		var urls []string
+		var promCfg prometheusInput
 
 		for _, port := range c.ports {
-			urls = append(urls, fmt.Sprintf("\"%s://localhost:%d%s\"", c.scheme, port, c.metricsPath))
+			promCfg.Urls = append(promCfg.Urls, fmt.Sprintf("%s://localhost:%d%s", c.scheme, port, c.metricsPath))
 		}
 
-		promConfig = fmt.Sprintf("%s  urls = [%s]\n", promConfig, strings.Join(urls, ", "))
-		promConfig = fmt.Sprintf("%s  interval = \"%s\"\n", promConfig, c.interval.String())
-
-		if c.metricVersion > 0 {
-			promConfig = fmt.Sprintf("%s  metric_version = %d\n", promConfig, c.metricVersion)
-		}
+		promCfg.Interval = c.interval.String()
+		promCfg.MetricVersion = c.metricVersion
 
 		if c.namepass != "" {
-			promConfig = fmt.Sprintf("%s  namepass = %s\n", promConfig, c.namepass)
+			namepass := strings.Split(c.namepass, ",")
+			for _, item := range namepass {
+				promCfg.Namepass = append(promCfg.Namepass, strings.TrimSpace(item))
+			}
 		}
 
-		config = fmt.Sprintf("%s%s\n", config, promConfig)
+		cfg.Inputs["prometheus"] = []prometheusInput{promCfg}
 	}
 
 	if c.enableInternal {
-		config = fmt.Sprintf("%s[[inputs.internal]]\n\n", config)
+		cfg.Inputs["internal"] = []map[string]any{make(map[string]any)}
 	}
 
 	if c.rawInput != "" {
-		config = fmt.Sprintf("%s%s", config, c.rawInput)
+		rawInputs := rawInputs{}
+		if err := toml.Unmarshal([]byte(strings.TrimSpace(c.rawInput)), &rawInputs); err != nil {
+			return "", fmt.Errorf("failed to unmarshal raw input annotation data, error: %w", err)
+		}
+
+		for k, v := range rawInputs.Inputs {
+			cfg.Inputs[k] = v
+		}
 	}
 
-	config = fmt.Sprintf("%s\n", strings.TrimSpace(config))
-
-	if _, err := toml.Parse([]byte(config)); err != nil {
-		return "", fmt.Errorf("failed to parse the final telegaf configuration: %w", err)
+	if len(c.globalTags) > 0 {
+		for k, v := range c.globalTags {
+			cfg.GlobalTags[k] = v
+		}
 	}
 
-	return config, nil
+	config, err := toml.Marshal(cfg)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal final toml output, error: %w", err)
+	}
+
+	return string(config), nil
 }

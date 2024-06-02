@@ -111,8 +111,8 @@ const (
 	// Only metrics whose measurement name matches a pattern
 	// in this list are emitted.
 	//
-	// Annotation value must be specified as raw TOML, e.g.
-	// "[ 'metric_a', "metric_b" ]"
+	// Annotation value must be specified as a comma-separated string, e.g.
+	// "metric1, metric2"
 	TelegrafConfigMetricsNamepass = Prefix + "/namepass"
 
 	// TelegrafConfigIntervalAnnotation can be used to configure

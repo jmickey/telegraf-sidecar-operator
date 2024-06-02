@@ -100,7 +100,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	telegrafConfig := newTelegrafConfig(r.ClassDataHandler, r.DefaultClass, r.EnableInternalPlugin)
+	telegrafConfig := newAnnotationValues(r.ClassDataHandler, r.DefaultClass, r.EnableInternalPlugin)
 	if err := telegrafConfig.applyAnnotationOverrides(obj.GetAnnotations()); err != nil {
 		msg := fmt.Sprintf("one or more warnings were generated when applying telegraf pod annotations: [ %s ]", err.Error())
 		r.Recorder.Event(obj, corev1.EventTypeWarning, "InvalidAnnotationFormat", msg)

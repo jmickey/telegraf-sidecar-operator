@@ -34,6 +34,7 @@ import (
 
 const (
 	timeout   = time.Second * 10
+	duration  = time.Second * 5
 	interval  = time.Millisecond * 250
 	namespace = "default"
 )
@@ -46,22 +47,7 @@ var _ = Describe("Pod Controller", func() {
 	When("A pod is created", func() {
 		Context("And there is no telegraf.influxdata.com/injected label", func() {
 			It("should not reconcile the object", func() {
-				podName := "no-label"
-
-				pod := &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      podName,
-						Namespace: namespace,
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "test-container",
-								Image: "ubuntu:latest",
-							},
-						},
-					},
-				}
+				pod := newTestPod("no-label", nil, nil)
 				Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
 
 				secretKey := types.NamespacedName{
@@ -77,21 +63,18 @@ var _ = Describe("Pod Controller", func() {
 						return apierrors.IsNotFound(err)
 					}
 					return false
-				}, timeout, interval).Should(BeTrue())
+				}, duration, interval).Should(BeTrue())
 
-				cleanUpPod(podName)
+				cleanUpPod(pod.GetName())
 			})
 		})
 
 		Context("And the telegraf.influxdata.com/injected label exists", func() {
 			Context("And the telegraf config secret already exists", func() {
 				It("Should skip further reconciliation", func() {
-					podName := "secret-already-exists"
-					secretName := "telegraf-config-secret-already-exists"
-
 					secret := &corev1.Secret{
 						ObjectMeta: metav1.ObjectMeta{
-							Name:      secretName,
+							Name:      "telegraf-config-secret-already-exists",
 							Namespace: namespace,
 						},
 					}
@@ -103,30 +86,15 @@ var _ = Describe("Pod Controller", func() {
 						return k8sClient.Get(testCtx, key, s)
 					}, timeout, interval).Should(Succeed())
 
-					pod := &corev1.Pod{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      podName,
-							Namespace: namespace,
-							Labels: map[string]string{
-								metadata.SidecarInjectedLabel: "true",
-							},
-							Annotations: map[string]string{
-								metadata.TelegrafConfigMetricsPortsAnnotation: "8080",
-							},
-						},
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  "test-container",
-									Image: "ubuntu:latest",
-								},
-							},
-						},
-					}
+					pod := newTestPod(
+						"secret-already-exists",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{metadata.TelegrafConfigMetricsPortsAnnotation: "8080"},
+					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
 
 					secretKey := types.NamespacedName{
-						Name:      secretName,
+						Name:      secret.GetName(),
 						Namespace: namespace,
 					}
 					By("Confirming that the pod hasn't been updated")
@@ -137,37 +105,18 @@ var _ = Describe("Pod Controller", func() {
 						return ok
 					}, timeout, interval).Should(BeFalse())
 
-					cleanUpPod(podName)
-					cleanUpSecret(secretName)
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
 				})
-
 			})
 
 			Context("And the telegraf secret does not already exist", func() {
-				It("Should complete the reconciliation successfully with single port annotation", func() {
-					podName := "single-port-annotation"
-					secretName := "telegraf-config-" + podName
-
-					pod := &corev1.Pod{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      podName,
-							Namespace: namespace,
-							Labels: map[string]string{
-								metadata.SidecarInjectedLabel: "true",
-							},
-							Annotations: map[string]string{
-								metadata.TelegrafConfigMetricsPortsAnnotation: "8080",
-							},
-						},
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  "test-container",
-									Image: "ubuntu:latest",
-								},
-							},
-						},
-					}
+				It("Should reconcile successfully with minimum configuration", func() {
+					pod := newTestPod(
+						"minimum-config",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{metadata.TelegrafSecretClassNameLabel: "testclass"},
+					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
 					Eventually(func() error {
 						p := &corev1.Pod{}
@@ -190,36 +139,45 @@ var _ = Describe("Pod Controller", func() {
 
 					val, ok = secret.GetLabels()[metadata.TelegrafSecretPodLabel]
 					Expect(ok).To(BeTrue())
-					Expect(val).To(Equal(podName))
+					Expect(val).To(Equal(pod.GetName()))
+				})
 
-					cleanUpPod(podName)
-					cleanUpSecret(secretName)
+				It("Should reconcile successfully with single port annotation", func() {
+					pod := newTestPod(
+						"single-port-annotation",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{metadata.TelegrafConfigMetricsPortsAnnotation: "8080"},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/single-port.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
 				})
 
 				It("Should complete the reconciliation successfully with multiple ports annotation", func() {
-					podName := "multiple-ports-annotation"
-					secretName := "telegraf-config-" + podName
-
-					pod := &corev1.Pod{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:      podName,
-							Namespace: namespace,
-							Labels: map[string]string{
-								metadata.SidecarInjectedLabel: "true",
-							},
-							Annotations: map[string]string{
-								metadata.TelegrafConfigMetricsPortsAnnotation: "8080, 9090, 9091",
-							},
-						},
-						Spec: corev1.PodSpec{
-							Containers: []corev1.Container{
-								{
-									Name:  "test-container",
-									Image: "ubuntu:latest",
-								},
-							},
-						},
-					}
+					pod := newTestPod(
+						"multiple-ports-annotation",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{metadata.TelegrafConfigMetricsPortsAnnotation: "8080, 9090, 9091"},
+					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
 					Eventually(func() error {
 						p := &corev1.Pod{}
@@ -236,24 +194,209 @@ var _ = Describe("Pod Controller", func() {
 						return k8sClient.Get(testCtx, key, secret)
 					}, timeout, interval).Should(Succeed())
 
-					val, ok := secret.GetLabels()[metadata.TelegrafSecretClassNameLabel]
-					Expect(ok).To(BeTrue())
-					Expect(val).To(Equal("testclass"))
-
-					val, ok = secret.GetLabels()[metadata.TelegrafSecretPodLabel]
-					Expect(ok).To(BeTrue())
-					Expect(val).To(Equal(podName))
-
-					err := os.WriteFile("test", secret.Data["telegraf.conf"], 0644)
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/multiple-ports.toml")
 					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
 
-					cleanUpPod(podName)
-					cleanUpSecret(secretName)
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should reconcile successfully with prometheus plugin overrides", func() {
+					pod := newTestPod(
+						"prometheus-plugin-overrides",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.TelegrafConfigMetricsPortsAnnotation:  "8080",
+							metadata.TelegrafConfigMetricsSchemeAnnotation: "https",
+							metadata.TelegrafConfigMetricsPathAnnotation:   "/test-path",
+							metadata.TelegrafConfigIntervalAnnotation:      "30s",
+							metadata.TelegrafConfigMetricVersionAnnotation: "2",
+							metadata.TelegrafConfigMetricsNamepass:         "['metric1']",
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/prometheus-overrides.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should reconcile successfully with raw input annotation", func() {
+					pod := newTestPod(
+						"raw-input",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.TelegrafConfigRawInputAnnotation: `
+[[inputs.influxdb_listener]]
+  service_address = ":8186"
+  max_body_size = 0
+  max_line_size = 0
+  read_timeout = "8s"
+  write_timeout = "8s"
+[inputs.influxdb_listener.tags]
+  collectiontype = "application"
+`,
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/raw-input.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should reconcile successfully with internal plugin enabled", func() {
+					pod := newTestPod(
+						"internal-plugin-enabled",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.TelegrafConfigEnableInternalAnnotation: "yes",
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/internal-plugin.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should reconcile successfully with global tags annotation", func() {
+					pod := newTestPod(
+						"global-tags",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.TelegrafConfigGlobalTagLiteralPrefixAnnotation + "my_tag": "my-value",
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/global-tags.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should fail reconciliation if raw input is invalid toml", func() {
+					pod := newTestPod(
+						"invalid-raw-input",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{metadata.TelegrafConfigRawInputAnnotation: "[[inputs.exec]]invalid1"},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secretKey := types.NamespacedName{
+						Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+						Namespace: namespace,
+					}
+
+					By("Expecting the secret to not be created with NotFound error")
+					Consistently(func() bool {
+						secret := &corev1.Secret{}
+						err := k8sClient.Get(testCtx, secretKey, secret)
+						if err != nil {
+							return apierrors.IsNotFound(err)
+						}
+						return false
+					}, duration, interval).Should(BeTrue())
+
+					cleanUpPod(pod.GetName())
 				})
 			})
 		})
 	})
 })
+
+func newTestPod(name string, labels map[string]string, annotations map[string]string) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "test-container",
+					Image: "ubuntu:latest",
+				},
+			},
+		},
+	}
+}
 
 func cleanUpPod(name string) {
 	podKey := types.NamespacedName{Name: name, Namespace: namespace}
