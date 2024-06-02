@@ -5,6 +5,7 @@ go 1.22.0
 toolchain go1.22.2
 
 require (
+	github.com/BurntSushi/toml v1.4.0
 	github.com/go-logr/logr v1.4.1
 	github.com/influxdata/toml v0.0.0-20180607005434-2a2e3012f7cf
 	github.com/onsi/ginkgo/v2 v2.15.0
@@ -17,7 +18,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
