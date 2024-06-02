@@ -26,12 +26,12 @@ import (
 )
 
 type Handler interface {
-	GetDataForClass(name string) (string, bool)
+	GetDataForClass(name string) ([]byte, bool)
 	Update() error
 }
 
 type DirecroryHandler struct {
-	data map[string]string
+	data map[string][]byte
 	path string
 	mu   sync.RWMutex
 }
@@ -39,7 +39,7 @@ type DirecroryHandler struct {
 func NewDirectoryHandler(path string) (*DirecroryHandler, error) {
 	handler := &DirecroryHandler{
 		path: path,
-		data: make(map[string]string),
+		data: make(map[string][]byte),
 	}
 
 	if err := handler.readClassData(); err != nil {
@@ -53,7 +53,7 @@ func NewDirectoryHandler(path string) (*DirecroryHandler, error) {
 	return handler, nil
 }
 
-func (h *DirecroryHandler) GetDataForClass(name string) (string, bool) {
+func (h *DirecroryHandler) GetDataForClass(name string) ([]byte, bool) {
 	h.mu.RLock()
 	data, ok := h.data[name]
 	h.mu.RUnlock()
@@ -63,7 +63,7 @@ func (h *DirecroryHandler) GetDataForClass(name string) (string, bool) {
 
 func (h *DirecroryHandler) Update() error {
 	// Make a copy of the current data in case the update fails
-	cp := make(map[string]string)
+	cp := make(map[string][]byte)
 	h.mu.RLock()
 	for k, v := range h.data {
 		cp[k] = v
@@ -117,7 +117,7 @@ func (h *DirecroryHandler) readClassData() error {
 			if err != nil {
 				return fmt.Errorf("failed to read data from file: %s, error: %w", file.Name(), err)
 			}
-			h.data[file.Name()] = string(data)
+			h.data[file.Name()] = data
 		}
 	}
 
