@@ -115,7 +115,7 @@ var _ = Describe("Pod Controller", func() {
 					pod := newTestPod(
 						"minimum-config",
 						map[string]string{metadata.SidecarInjectedLabel: "true"},
-						map[string]string{metadata.TelegrafSecretClassNameLabel: "testclass"},
+						map[string]string{},
 					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
 					Eventually(func() error {
@@ -140,6 +140,47 @@ var _ = Describe("Pod Controller", func() {
 					val, ok = secret.GetLabels()[metadata.TelegrafSecretPodLabel]
 					Expect(ok).To(BeTrue())
 					Expect(val).To(Equal(pod.GetName()))
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/minimum-config.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should reconcile successfully with minimum configuration", func() {
+					pod := newTestPod(
+						"alternate-class",
+						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{metadata.TelegrafConfigClassAnnotation: "alternateclass"},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					val, ok := secret.GetLabels()[metadata.TelegrafSecretClassNameLabel]
+					Expect(ok).To(BeTrue())
+					Expect(val).To(Equal("alternateclass"))
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/alternate-class.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
 				})
 
 				It("Should reconcile successfully with single port annotation", func() {
