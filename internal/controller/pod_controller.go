@@ -21,7 +21,6 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -84,14 +83,22 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		Name:      fmt.Sprintf("telegraf-config-%s", obj.GetName()),
 		Namespace: req.Namespace,
 	}
-	if err := r.Get(ctx, name, secret); err == nil {
-		log.Info("reconciliation skipped, telegraf-config secret for pod already exists")
-		return ctrl.Result{}, nil
-	} else {
-		if !apierrors.IsNotFound(err) {
-			log.Error(err, "failed to lookup secret from kubernetes api")
-			return ctrl.Result{}, err
+	err := r.Get(ctx, name, secret)
+	if client.IgnoreNotFound(err) != nil {
+		log.Error(err, "failed to lookup secret from kubernetes api")
+		return ctrl.Result{}, err
+	}
+	if err == nil {
+		for _, owner := range secret.GetOwnerReferences() {
+			if owner.UID == obj.GetUID() {
+				log.Info("reconciliation skipped, telegraf-config secret for pod already exists")
+				return ctrl.Result{}, nil
+			}
 		}
+		// The secret already exists but is not owned by this pod's UID
+		// therefore it should be safe to assume that the secret likely
+		// hasn't been cleaned up yet, so we requeue the object.
+		return ctrl.Result{Requeue: true}, nil
 	}
 
 	return r.reconcile(ctx, obj)
