@@ -24,7 +24,7 @@ TARGET_OS ?= linux
 TARGET_ARCH ?= amd64
 
 GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
-GO_BUILD_VARS= GOMODULE=on CGO_ENABLED=0 GOOS=${TARGET_OS} GOARCH=${TARGET_ARCH}
+GO_BUILD_VARS= GOMODULE=on CGO_ENABLED=0 GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH)
 GO_LDFLAGS="-X=github.com/jmickey/telegraf-sidecar-operator/internal/version.GitCommit=$(GIT_COMMIT) -X=github.com/jmickey/telegraf-sidecar-operator/internal/version.Version=$(VERSION)"
 
 OUTPUT_TYPE ?= registry

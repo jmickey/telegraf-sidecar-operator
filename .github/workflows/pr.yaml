@@ -13,8 +13,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: ARM64
-            name: arm64
           - runner: ubuntu-latest
             name: amd64
 
@@ -76,8 +74,6 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: ARM64
-            name: arm64
           - runner: ubuntu-latest
             name: amd64
 
