@@ -22,7 +22,7 @@ COPY hack/ hack/
 COPY internal/ internal/
 
 RUN VERSION=${BUILD_VERSION} GIT_COMMIT=${GIT_COMMIT} TARGET_OS=$TARGETOS TARGET_ARCH=$TARGETARCH \
-  make build
+  make manager
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
