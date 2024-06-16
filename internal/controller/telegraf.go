@@ -34,24 +34,23 @@ const (
 
 type annotationValues struct {
 	classDataHandler classdata.Handler
-
-	class          string
-	metricsPath    string
-	scheme         string
-	namepass       string
-	rawInput       string
-	ports          []uint16
-	interval       time.Duration
-	metricVersion  uint8
-	enableInternal bool
-	globalTags     map[string]string
+	globalTags       map[string]string
+	class            string
+	metricsPath      string
+	scheme           string
+	namepass         string
+	rawInput         string
+	ports            []uint16
+	interval         time.Duration
+	metricVersion    uint8
+	enableInternal   bool
 }
 
 type prometheusInput struct {
-	Urls          []string `toml:"urls"`
 	Interval      string   `toml:"interval"`
-	MetricVersion uint8    `toml:"metric_version"`
+	Urls          []string `toml:"urls"`
 	Namepass      []string `toml:"namepass"`
+	MetricVersion uint8    `toml:"metric_version"`
 }
 
 type telegrafConfig struct {

@@ -91,7 +91,7 @@ func (h *DirecroryHandler) validate() error {
 	}
 
 	for file, data := range h.data {
-		if _, err := toml.Parse([]byte(data)); err != nil {
+		if _, err := toml.Parse(data); err != nil {
 			return fmt.Errorf("failed to validate class data for file: %s, error: %w", file, err)
 		}
 	}

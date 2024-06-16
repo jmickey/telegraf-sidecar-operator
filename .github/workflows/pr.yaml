@@ -1,0 +1,90 @@
+name: CI
+on:
+  pull_request:
+
+concurrency:
+  group: ${{ github.worflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Setup Go
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version: "1.22"
+
+      - name: Test
+        run: make test
+
+      - name: Create test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: "report.xml"
+        if: always()
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Set up Go
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version: "1.22"
+
+      - name: Lint
+        run: make lint
+        env:
+          LINTER_FLAGS: "--timeout 5m"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Set up Go
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version: "1.22"
+
+      - name: Build
+        run: make build
+
+  validate-docker:
+    name: Validate Docker
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+
+      - name: Make docker-build
+        run: make docker-build
+        env:
+          VERSION: "sha-${{ github.sha }}"
+
+  trivy-scan:
+    uses: ./.github/workflows/template-trivy-scan.yaml
+    with:
+      runs-on: "ubuntu-latest"
+      scan-type: "fs"
+      format: "table"
+      output: ""
+      exit-code: 1
+      publish: false
