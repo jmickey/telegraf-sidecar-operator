@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	goruntime "runtime"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -39,6 +40,7 @@ import (
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/controller"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/injectorwebhook"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/version"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -210,7 +212,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager")
+	setupLog.Info("starting manager",
+		"manager-version", version.Version, "git-commit", version.GitCommit, "go-version", goruntime.Version())
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
