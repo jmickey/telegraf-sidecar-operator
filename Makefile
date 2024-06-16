@@ -1,3 +1,5 @@
+VERSION ?= main
+
 # Image URL to use all building/pushing image targets
 IMG_REGISTRY ?= docker.io
 IMG_REPO ?= jmickey

@@ -1,6 +1,6 @@
 name: CI
 on:
-  - pull_request
+  pull_request:
 
 concurrency:
   group: ${{ github.worflow }}-${{ github.head_ref || github.run_id }}
@@ -69,6 +69,8 @@ jobs:
 
       - name: Build
         run: make build
+        env:
+          VERSION: ${{ github.sha }}
 
   validate-docker:
     name: validate-docker-${{ matrix.name }}
@@ -92,7 +94,7 @@ jobs:
         run: make docker-build
 
   trivy-scan:
-    uses: jmickey/telegraf-sidecar-operator/.github/workflows/template-trivy-scan.yml@main
+    uses: ./.github/workflows/template-trivy-scan.yml
     with:
       runs-on: "ubuntu-latest"
       scan-type: "fs"
