@@ -94,7 +94,7 @@ jobs:
         run: make docker-build
 
   trivy-scan:
-    uses: ./.github/workflows/template-trivy-scan.yml
+    uses: ./.github/workflows/template-trivy-scan.yaml
     with:
       runs-on: "ubuntu-latest"
       scan-type: "fs"
