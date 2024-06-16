@@ -1,6 +1,5 @@
-VERSION ?= main
-
 # Image URL to use all building/pushing image targets
+VERSION ?= main
 IMG_REGISTRY ?= docker.io
 IMG_REPO ?= jmickey
 IMG ?= $(IMG_REGISTRY)/$(IMG_REPO)/telegraf-sidecar-operator:$(VERSION)
@@ -97,7 +96,7 @@ lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
 
 .PHONY: build
 build: manifests generate fmt vet ## Build manager binary.
-	${GO_BUILD_VARS} go build -ldflags $(GO_LDFLAGS) -o bin/manager cmd/main.go
+	$(GO_BUILD_VARS) go build -ldflags $(GO_LDFLAGS) -o bin/manager cmd/main.go
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
@@ -108,7 +107,7 @@ run: manifests generate fmt vet ## Run a controller from your host.
 # More info: https://docs.docker.com/develop/develop-images/build_enhancements/
 .PHONY: docker-build
 docker-build: ## Build docker image with the manager.
-$(CONTAINER_TOOL) build -t ${IMG} . --build-arg BUILD_VERSION=${VERSION} --build-arg GIT_COMMIT=${GIT_COMMIT}
+	$(CONTAINER_TOOL) build -t $(IMG) . --build-arg BUILD_VERSION=$(VERSION) --build-arg GIT_COMMIT=$(GIT_COMMIT)
 
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager.
