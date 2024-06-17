@@ -1,0 +1,74 @@
+name: release-build
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Push Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write # needed for signing the images with GitHub OIDC Token
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+
+      - name: Get Version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Set up Go
+        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        with:
+          go-version: "1.22"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+          registry: docker.io
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+
+      - name: Publish Multiarch Image
+        run: make publish-multi-arch
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Setup Cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
+
+      - name: Check Cosign install!
+        run: cosign version
+
+      - name: Sign Image
+        run: make sign
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Make Deployment YAML
+        run: make release
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+
+      - name: Create Release
+        id: create_release
+        uses: marvinpinto/action-automatic-releases@v1.2.1
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Upload Deployment YAML Artifact
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: telegraf-sidecar-operator-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_name: telegraf-sidecar-operator-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_content_type: application/x-yaml
