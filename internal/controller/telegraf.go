@@ -134,7 +134,7 @@ func (c *annotationValues) applyAnnotationOverrides(annotations map[string]strin
 	}
 
 	if override, ok := annotations[metadata.TelegrafConfigMetricVersionAnnotation]; ok {
-		if ver, err := strconv.ParseInt(override, 10, 16); err != nil {
+		if ver, err := strconv.ParseUint(override, 10, 8); err != nil {
 			warnings = append(warnings, fmt.Sprintf("failed to convert value: %s for %s to integer, error: %s",
 				override, metadata.TelegrafConfigMetricVersionAnnotation, err.Error()))
 		} else {
