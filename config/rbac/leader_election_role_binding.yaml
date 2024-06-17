@@ -2,18 +2,16 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   labels:
-    app.kubernetes.io/name: rolebinding
-    app.kubernetes.io/instance: leader-election-rolebinding
-    app.kubernetes.io/component: rbac
-    app.kubernetes.io/created-by: telegraf-sidecar-operator
+    app.kubernetes.io/name: telegraf-sidecar-operator-leader-election
     app.kubernetes.io/part-of: telegraf-sidecar-operator
+    app.kubernetes.io/version: latest
     app.kubernetes.io/managed-by: kustomize
-  name: leader-election-rolebinding
+  name: telegraf-sidecar-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: leader-election-role
 subjects:
-- kind: ServiceAccount
-  name: controller-manager
-  namespace: telegraf-sidecar-operator
+  - kind: ServiceAccount
+    name: telegraf-sidecar-operator
+    namespace: telegraf-sidecar-operator

@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: telegraf-classes
+  labels:
+    app: telegraf-sidecar-operator
+data:
+  infra: |
+    [agent]
+      interval = "10s"
+      round_interval = true
+      metric_batch_size = 1000
+      metric_buffer_limit = 10000
+      collection_jitter = "0s"
+      flush_interval = "10s"
+      flush_jitter = "3s"
+      debug = false
+      quiet = false
+      logfile = ""
+      hostname = "$NODENAME"
+    [[outputs.file]]
+      files = ["stdout"]
+    [global_tags]
+      pod_name = "$HOSTNAME"
+      nodename = "$NODENAME"
+      namespace = "$NAMESPACE"
+      type = "app"
