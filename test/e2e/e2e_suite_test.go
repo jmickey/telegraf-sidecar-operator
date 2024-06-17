@@ -27,6 +27,10 @@ import (
 // Run e2e tests using the Ginkgo runner.
 func TestE2E(t *testing.T) {
 	RegisterFailHandler(Fail)
-	fmt.Fprintf(GinkgoWriter, "Starting telegraf-sidecar-operator suite\n")
+	_, _ = fmt.Fprintf(GinkgoWriter, "Starting telegraf-sidecar-operator suite\n")
 	RunSpecs(t, "e2e suite")
 }
+
+var _ = BeforeSuite(func() {
+	// setup kind and controller
+})
