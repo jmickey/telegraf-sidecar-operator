@@ -1,7 +1,6 @@
 # Build the manager binary
-FROM golang:1.22 AS builder
-ARG TARGETOS
-ARG TARGETARCH
+FROM --platform=$BUILDPLATFORM golang:1.22 AS builder
+
 ARG GIT_COMMIT=HEAD
 ARG BUILD_VERSION=main
 
@@ -21,7 +20,12 @@ COPY cmd/main.go cmd/main.go
 COPY hack/ hack/
 COPY internal/ internal/
 
-RUN VERSION=${BUILD_VERSION} GIT_COMMIT=${GIT_COMMIT} TARGET_OS=$TARGETOS TARGET_ARCH=$TARGETARCH \
+ARG TARGETOS
+ARG TARGETARCH
+ARG GOCACHE=/root/.cache/go-build
+RUN go env -w GOCACHE=${GOCACHE}
+RUN --mount=type=cache,target=${GOCACHE} \
+  VERSION=${BUILD_VERSION} GIT_COMMIT=${GIT_COMMIT} TARGET_OS=$TARGETOS TARGET_ARCH=$TARGETARCH \
   make manager
 
 # Use distroless as minimal base image to package the manager binary
