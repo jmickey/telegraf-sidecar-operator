@@ -65,6 +65,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Docker Metadata
+        id: docker-metadata
         uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
         with:
           images: |
@@ -90,8 +91,8 @@ jobs:
           context: .
           platforms: linux/arm64,linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.docker-metadata.outputs.tags }}
+          labels: ${{ steps.docker-metadata.outputs.labels }}
           build-args: |
             BUILD_VERSION=${{ github.ref_name }}
             GIT_COMMIT=${{ github.sha }}

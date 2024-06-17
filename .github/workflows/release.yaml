@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
 
       - name: Get Version
-        id: get_version
+        id: get-version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
       - name: Set up Go
@@ -27,6 +27,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Docker Metadata
+        id: docker-metadata
         uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
         with:
           images: |
@@ -47,16 +48,17 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
 
-      - name: Build & Publish
+      - name: Build & Push
+        id: build-and-push
         uses: docker/build-push-action@c382f710d39a5bb4e430307530a720f50c2d3318 # v6.0.0
         with:
           context: .
           platforms: linux/arm64,linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.docker-metadata.outputs.tags }}
+          labels: ${{ steps.docker-metadata.outputs.labels }}
           build-args: |
-            BUILD_VERSION=${{ steps.get_version.outputs.VERSION }}
+            BUILD_VERSION=${{ steps.get-version.outputs.VERSION }}
             GIT_COMMIT=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -70,7 +72,7 @@ jobs:
       - name: Sign Image
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
-          TAGS: ${{ steps.meta.outputs.tags }}
+          TAGS: ${{ steps.docker-metadata.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         # This step uses the identity token to provision an ephemeral certificate
         # against the sigstore community Fulcio instance.
@@ -79,7 +81,7 @@ jobs:
       - name: Make Deployment YAML
         run: make release
         env:
-          VERSION: ${{ steps.get_version.outputs.VERSION }}
+          VERSION: ${{ steps.get-version.outputs.VERSION }}
 
       - name: Create Release
         id: create_release
@@ -93,6 +95,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: telegraf-sidecar-operator-${{ steps.get_version.outputs.VERSION }}.yaml
-          asset_name: telegraf-sidecar-operator-${{ steps.get_version.outputs.VERSION }}.yaml
+          asset_path: telegraf-sidecar-operator-${{ steps.get-version.outputs.VERSION }}.yaml
+          asset_name: telegraf-sidecar-operator-${{ steps.get-version.outputs.VERSION }}.yaml
           asset_content_type: application/x-yaml
