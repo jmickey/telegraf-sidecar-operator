@@ -36,7 +36,11 @@ jobs:
             type=ref,event=branch
             type=ref,event=pr
             type=semver,pattern={{version}}
-            type=sha
+            type=sha,format=long
+          labels: |
+            org.opencontainers.image.title=Telegraf Sidecar Operator
+            org.opencontainers.image.description=Use Kubernetes Pod annotations to automatically inject and configure Telegraf sidecar containers.
+            org.opencontainers.image.authors=Josh Michielsen
 
       - name: Login to Docker Hub
         uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
