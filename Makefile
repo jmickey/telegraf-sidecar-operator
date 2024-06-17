@@ -13,21 +13,25 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+# Linter flags
+LINTER_FLAGS ?= --timeout 2m
+
 # CONTAINER_TOOL defines the container tool to be used for building images.
 # Be aware that the target commands are only tested with Docker which is
 # scaffolded by default. However, you might want to replace it to use other
 # tools. (i.e. podman)
 CONTAINER_TOOL ?= docker
-
 TARGET_OS ?= linux
 TARGET_ARCH ?= amd64
 OUTPUT_TYPE ?= registry
-DATE = $(shell date -u +"%Y.%m.%d.%H.%M.%S")
 
+# Build variables
 GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
 GO_BUILD_VARS= GOMODULE=on CGO_ENABLED=0 GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH)
 GO_LDFLAGS="-X=github.com/jmickey/telegraf-sidecar-operator/internal/version.GitCommit=$(GIT_COMMIT) -X=github.com/jmickey/telegraf-sidecar-operator/internal/version.Version=$(VERSION)"
 
+# Cosign variables
+DATE = $(shell date -u +"%Y.%m.%d.%H.%M.%S")
 COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
@@ -88,7 +92,7 @@ test-e2e:
 
 .PHONY: lint
 lint: golangci-lint ## Run golangci-lint linter & yamllint
-	$(GOLANGCI_LINT) run
+	$(GOLANGCI_LINT) run $(LINTER_FLAGS)
 
 .PHONY: lint-fix
 lint-fix: golangci-lint ## Run golangci-lint linter and perform fixes
