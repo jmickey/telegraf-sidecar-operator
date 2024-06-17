@@ -88,7 +88,7 @@ func main() {
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers.")
-	flag.StringVar(&telegrafClassesDirectory, "telegraf-classes-directory", "/config/classes",
+	flag.StringVar(&telegrafClassesDirectory, "telegraf-classes-directory", "/etc/config/classes",
 		"Path to the directory containing telegraf class files.")
 	flag.StringVar(&telegrafDefaultClass, "telegraf-default-class", "default",
 		"Default telegraf class to use.")
