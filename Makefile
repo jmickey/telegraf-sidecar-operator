@@ -21,12 +21,14 @@ CONTAINER_TOOL ?= docker
 
 TARGET_OS ?= linux
 TARGET_ARCH ?= amd64
+OUTPUT_TYPE ?= registry
+DATE = $(shell date -u +"%Y.%m.%d.%H.%M.%S")
 
 GIT_COMMIT ?= $(shell git rev-list -1 HEAD)
 GO_BUILD_VARS= GOMODULE=on CGO_ENABLED=0 GOOS=$(TARGET_OS) GOARCH=$(TARGET_ARCH)
 GO_LDFLAGS="-X=github.com/jmickey/telegraf-sidecar-operator/internal/version.GitCommit=$(GIT_COMMIT) -X=github.com/jmickey/telegraf-sidecar-operator/internal/version.Version=$(VERSION)"
 
-OUTPUT_TYPE ?= registry
+COSIGN_FLAGS ?= -y -a GIT_HASH=${GIT_COMMIT} -a GIT_VERSION=${VERSION} -a BUILD_DATE=${DATE}
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
 # Options are set to exit when a recipe line exits non-zero or a piped command fails.
@@ -140,8 +142,19 @@ publish-multiarch:
 .PHONY: build-installer
 build-installer: manifests generate kustomize ## Generate a consolidated YAML with CRDs and deployment.
 	mkdir -p dist
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+	cd config/manager && $(KUSTOMIZE) edit set image docker.io/jmickey/telegraf-sidecar-operator=${IMG}
 	$(KUSTOMIZE) build config/default > dist/install.yaml
+
+.PHONY: release
+release: manifests kustomize
+	cd config/manager && $(KUSTOMIZE) edit set image docker.io/jmickey/telegraf-sidecar-operator=${IMG}
+	@sed -i".out" -e 's@version:[ ].*@version: $(VERSION)@g' config/default/kustomize-config/metadataLabelTransformer.yaml
+	rm -rf config/default/kustomize-config/metadataLabelTransformer.yaml.out
+	$(KUSTOMIZE) build config/default > telegraf-sidecar-operator-$(VERSION).yaml
+
+.PHONY: sign-image
+sign-image:
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMG)
 
 ##@ Deployment
 
