@@ -154,7 +154,7 @@ release: manifests kustomize
 
 .PHONY: sign-image
 sign-image:
-	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMG)
+	COSIGN_EXPERIMENTAL=1 cosign sign ${COSIGN_FLAGS} $(IMG)@$(DIGEST)
 
 ##@ Deployment
 

@@ -1,8 +1,13 @@
-name: Main
+name: CI
 on:
   push:
     branches:
       - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.worflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -16,7 +21,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
-          go-version: "1.22"
+          go-version-file: "go.mod"
 
       - name: Test
         run: make test
@@ -38,7 +43,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
-          go-version: "1.22"
+          go-version-file: "go.mod"
 
       - name: Lint
         run: make lint
@@ -57,23 +62,56 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
         with:
-          go-version: "1.22"
+          go-version-file: "go.mod"
+
+      - name: Docker Metadata
+        uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
+        with:
+          images: |
+            jmickey/telegraf-sidecar-operator
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
 
       - name: Login to Docker Hub
+        if: ${{ github.event_name != 'pull_request' }}
         uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_TOKEN }}
-          registry: docker.io
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
 
-      - name: Publish Multiarch
-        run: make publish-multiarch
+      - name: Build & Publish
+        uses: docker/build-push-action@c382f710d39a5bb4e430307530a720f50c2d3318 # v6.0.0
+        with:
+          context: .
+          platforms: linux/arm64,linux/amd64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_VERSION=${{ github.ref_name }}
+            GIT_COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  trivy-scan-pr:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/template-trivy-scan.yaml
+    with:
+      runs-on: "ubuntu-latest"
+      scan-type: "fs"
+      format: "table"
+      output: ""
+      exit-code: 1
+      publish: false
 
   trivy-codescan:
     needs: build-push
+    if: ${{ github.event_name != 'pull_request' }}
     uses: ./.github/workflows/template-trivy-scan.yaml
     with:
       runs-on: "ubuntu-latest"
@@ -84,6 +122,7 @@ jobs:
 
   trivy-scan-image:
     needs: build-push
+    if: ${{ github.event_name != 'pull_request' }}
     uses: ./.github/workflows/template-trivy-scan.yaml
     with:
       runs-on: "ubuntu-latest"
