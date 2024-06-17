@@ -57,18 +57,18 @@ jobs:
         env:
           VERSION: ${{ steps.get_version.outputs.VERSION }}
 
-      - name: Get Release
-        id: get_release_info
-        uses: bruceadams/get-release@74c3d60f5a28f358ccf241a00c9021ea16f0569f # v1.3.2
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+      - name: Create Release
+        id: create_release
+        uses: marvinpinto/action-automatic-releases@v1.2.1
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
 
       - name: Upload Deployment YAML Artifact
         uses: actions/upload-release-asset@v1.0.2
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ steps.get_release_info.outputs.upload_url }}
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: telegraf-sidecar-operator-${{ steps.get_version.outputs.VERSION }}.yaml
           asset_name: telegraf-sidecar-operator-${{ steps.get_version.outputs.VERSION }}.yaml
           asset_content_type: application/x-yaml
