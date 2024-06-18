@@ -4,7 +4,7 @@ metadata:
   name: metadataLabelTransformer
 labels:
   app.kubernetes.io/version: main
-  app.kubernetes.io/part-of: telegraf-sidecar-container
+  app.kubernetes.io/part-of: telegraf-sidecar-operator
 fieldSpecs:
   - path: metadata/labels
     create: true

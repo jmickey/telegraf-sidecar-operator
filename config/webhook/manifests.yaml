@@ -3,8 +3,6 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: telegraf-sidecar-operator
-  labels:
-    app.kubernetes.io/name: telegraf-sidecar-operator
 webhooks:
   - admissionReviewVersions:
       - v1
