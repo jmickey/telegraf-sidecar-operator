@@ -2,10 +2,11 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: telegraf-classes
+  namespace: telegraf-sidecar-operator
   labels:
     app: telegraf-sidecar-operator
 data:
-  infra: |
+  default: |
     [agent]
       interval = "10s"
       round_interval = true

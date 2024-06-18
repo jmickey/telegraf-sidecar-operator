@@ -11,7 +11,7 @@ cfssl gencert \
   -config=ca-config.json \
   -ca-key=ca-key.pem \
   -ca=ca.pem \
-  -hostname=telegraf-sidecar-operator-webhook-service.telegraf-sidecar-operator.svc,telegraf-sidecar-operator-webhook-service.telegraf-sidecar-operator,telegraf-sidecar-operator-webhook-service \
+  -hostname=telegraf-sidecar-operator.telegraf-sidecar-operator.svc,telegraf-sidecar-operator.telegraf-sidecar-operator,telegraf-sidecar-operator \
   -profile=server \
   server-csr.json | cfssljson -bare tls
 

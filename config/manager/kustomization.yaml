@@ -1,2 +1,8 @@
 resources:
-  - manager.yaml
+- manager.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+- name: docker.io/jmickey/telegraf-sidecar-operator
+  newName: jmickey/telegraf-sidecar-operator
+  newTag: sha-a5f5b309326ba0347057f34f8aa617469288caa4
