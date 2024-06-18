@@ -21,6 +21,7 @@ const (
 	SecretCreatedByLabelKey      = "app.kubernetes.io/created-by"
 	SecretManagedByLabelKey      = "app.kubernetes.io/managed-by"
 	SidecarInjectedLabel         = Prefix + "/injected"
+	SidecarSecretNameLabel       = Prefix + "/secret-name"
 	TelegrafSecretClassNameLabel = Prefix + "/class"
 	TelegrafSecretPodLabel       = Prefix + "/pod"
 )

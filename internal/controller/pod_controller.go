@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -69,8 +70,11 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	obj := &corev1.Pod{}
 	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
 		log.Error(err, "failed to fetch pod")
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+		return ctrl.Result{}, err
 	}
 
 	if !r.shouldAttemptReconcilation(obj) {
@@ -125,7 +129,7 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("telegraf-config-%s", obj.GetName()),
+			Name:      obj.GetLabels()[metadata.SidecarSecretNameLabel],
 			Namespace: obj.GetNamespace(),
 			Labels: map[string]string{
 				metadata.TelegrafSecretClassNameLabel: telegrafConfig.class,
