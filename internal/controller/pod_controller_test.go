@@ -88,7 +88,10 @@ var _ = Describe("Pod Controller", func() {
 
 					pod := newTestPod(
 						"secret-already-exists",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-secret-already-exists",
+						},
 						map[string]string{metadata.TelegrafConfigMetricsPortsAnnotation: "8080"},
 					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
@@ -114,7 +117,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should reconcile successfully with minimum configuration", func() {
 					pod := newTestPod(
 						"minimum-config",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-minimal-config",
+						},
 						map[string]string{},
 					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
@@ -127,7 +133,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -152,7 +158,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should reconcile successfully with minimum configuration", func() {
 					pod := newTestPod(
 						"alternate-class",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-alternate-class",
+						},
 						map[string]string{metadata.TelegrafConfigClassAnnotation: "alternateclass"},
 					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
@@ -165,7 +174,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -186,7 +195,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should reconcile successfully with single port annotation", func() {
 					pod := newTestPod(
 						"single-port-annotation",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-single-port-annotation",
+						},
 						map[string]string{metadata.TelegrafConfigMetricsPortsAnnotation: "8080"},
 					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
@@ -199,7 +211,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -216,7 +228,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should complete the reconciliation successfully with multiple ports annotation", func() {
 					pod := newTestPod(
 						"multiple-ports-annotation",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-multiple-ports-annotation",
+						},
 						map[string]string{metadata.TelegrafConfigMetricsPortsAnnotation: "8080, 9090, 9091"},
 					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
@@ -229,7 +244,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -246,7 +261,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should reconcile successfully with prometheus plugin overrides", func() {
 					pod := newTestPod(
 						"prometheus-plugin-overrides",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-prometheus-plugin-overrides",
+						},
 						map[string]string{
 							metadata.TelegrafConfigMetricsPortsAnnotation:  "8080",
 							metadata.TelegrafConfigMetricsSchemeAnnotation: "https",
@@ -266,7 +284,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -283,7 +301,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should reconcile successfully with raw input annotation", func() {
 					pod := newTestPod(
 						"raw-input",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-raw-input",
+						},
 						map[string]string{
 							metadata.TelegrafConfigRawInputAnnotation: `
 [[inputs.influxdb_listener]]
@@ -307,7 +328,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -324,7 +345,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should reconcile successfully with internal plugin enabled", func() {
 					pod := newTestPod(
 						"internal-plugin-enabled",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-internal-plugin-enabled",
+						},
 						map[string]string{
 							metadata.TelegrafConfigEnableInternalAnnotation: "yes",
 						},
@@ -339,7 +363,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -356,7 +380,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should reconcile successfully with global tags annotation", func() {
 					pod := newTestPod(
 						"global-tags",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-global-tags",
+						},
 						map[string]string{
 							metadata.TelegrafConfigGlobalTagLiteralPrefixAnnotation + "my_tag": "my-value",
 						},
@@ -371,7 +398,7 @@ var _ = Describe("Pod Controller", func() {
 					secret := &corev1.Secret{}
 					Eventually(func() error {
 						key := types.NamespacedName{
-							Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 							Namespace: pod.GetNamespace(),
 						}
 						return k8sClient.Get(testCtx, key, secret)
@@ -388,7 +415,10 @@ var _ = Describe("Pod Controller", func() {
 				It("Should fail reconciliation if raw input is invalid toml", func() {
 					pod := newTestPod(
 						"invalid-raw-input",
-						map[string]string{metadata.SidecarInjectedLabel: "true"},
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-invalid-raw-input",
+						},
 						map[string]string{metadata.TelegrafConfigRawInputAnnotation: "[[inputs.exec]]invalid1"},
 					)
 					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
@@ -399,7 +429,7 @@ var _ = Describe("Pod Controller", func() {
 					}, timeout, interval).Should(Succeed())
 
 					secretKey := types.NamespacedName{
-						Name:      fmt.Sprintf("telegraf-config-%s", pod.GetName()),
+						Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
 						Namespace: namespace,
 					}
 
