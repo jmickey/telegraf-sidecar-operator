@@ -27,9 +27,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
@@ -54,8 +56,23 @@ type PodReconciler struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	labelPredicate, err := predicate.LabelSelectorPredicate(metav1.LabelSelector{
+		MatchExpressions: []metav1.LabelSelectorRequirement{
+			{
+				Key:      metadata.SidecarInjectedLabel,
+				Operator: metav1.LabelSelectorOpExists,
+			},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create label selector predicate: %w", err)
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}).
+		For(&corev1.Pod{}, builder.WithPredicates(
+			labelPredicate,
+			predicate.GenerationChangedPredicate{},
+		)).
 		Owns(&corev1.Secret{}).
 		Complete(r)
 }
@@ -66,7 +83,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.17.3/pkg/reconcile
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	log := logf.FromContext(ctx).WithName("reconcile")
 
 	obj := &corev1.Pod{}
 	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
@@ -109,7 +126,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 }
 
 func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+	log := logf.FromContext(ctx).WithName("reconcile")
 
 	telegrafConfig := newAnnotationValues(r.ClassDataHandler, r.DefaultClass, r.EnableInternalPlugin)
 	if err := telegrafConfig.applyAnnotationOverrides(obj.GetAnnotations()); err != nil {
@@ -152,6 +169,10 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 	}
 
 	if err := r.Client.Create(ctx, secret); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			log.Info("telegraf-config secret for pod already exists", "secret", secret.GetName())
+			return ctrl.Result{}, nil
+		}
 		r.Recorder.Eventf(obj, corev1.EventTypeWarning, "CreateSecretInClusterError",
 			"failed to create secret: %s in cluster: %s", secret.GetName(), err.Error())
 		log.Error(err, "failed to create secret in cluster", "secret", secret.GetName())
