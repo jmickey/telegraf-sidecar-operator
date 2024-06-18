@@ -78,13 +78,14 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 	if secretName == "" {
 		secretName = names.SimpleNameGenerator.GenerateName(pod.GetGenerateName())
 	}
-	pod.Spec.Volumes = append(pod.Spec.Volumes, s.newTelegrafConfigVolume(secretName))
+	telegrafVol := s.newTelegrafConfigVolume(secretName)
+	pod.Spec.Volumes = append(pod.Spec.Volumes, telegrafVol)
 
 	if pod.Labels == nil {
 		pod.Labels = make(map[string]string)
 	}
 	pod.Labels[metadata.SidecarInjectedLabel] = "true"
-	pod.Labels[metadata.SidecarSecretNameLabel] = secretName
+	pod.Labels[metadata.SidecarSecretNameLabel] = telegrafVol.Secret.SecretName
 
 	log.Info("successfully injected telegraf sidecar container into pod", "secretName", secretName)
 	return nil
