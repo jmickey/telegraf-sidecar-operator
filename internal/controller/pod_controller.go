@@ -84,7 +84,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	secret := &corev1.Secret{}
 	name := types.NamespacedName{
-		Name:      fmt.Sprintf("telegraf-config-%s", obj.GetName()),
+		Name:      obj.GetLabels()[metadata.SidecarSecretNameLabel],
 		Namespace: req.Namespace,
 	}
 	err := r.Get(ctx, name, secret)
