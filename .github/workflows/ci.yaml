@@ -86,7 +86,7 @@ jobs:
             org.opencontainers.image.authors=Josh Michielsen
 
       - name: Login to Docker Hub
-        if: ${{ github.event_name != 'pull_request' }}
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -111,15 +111,15 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Setup Cosign
-        if: ${{ github.event_name != 'pull_request' }}
+        if: github.event_name != 'pull_request'
         uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
 
       - name: Check Cosign install!
-        if: ${{ github.event_name != 'pull_request' }}
+        if: github.event_name != 'pull_request'
         run: cosign version
 
       - name: Sign Image
-        if: ${{ github.event_name != 'pull_request' }}
+        if: github.event_name != 'pull_request'
         env:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: ${{ steps.docker-metadata.outputs.tags }}
@@ -129,7 +129,7 @@ jobs:
         run: echo "${TAGS}" | xargs -I {} make sign-image IMG={}
 
   trivy-scan-pr:
-    if: ${{ github.event_name == 'pull_request' }}
+    if: github.event_name == 'pull_request'
     uses: ./.github/workflows/template-trivy-scan.yaml
     with:
       runs-on: "ubuntu-latest"
@@ -141,7 +141,7 @@ jobs:
 
   trivy-codescan:
     needs: build-push
-    if: ${{ github.event_name != 'pull_request' }}
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/template-trivy-scan.yaml
     with:
       runs-on: "ubuntu-latest"
@@ -152,7 +152,7 @@ jobs:
 
   trivy-scan-image:
     needs: build-push
-    if: ${{ github.event_name != 'pull_request' }}
+    if: github.event_name != 'pull_request'
     uses: ./.github/workflows/template-trivy-scan.yaml
     with:
       runs-on: "ubuntu-latest"

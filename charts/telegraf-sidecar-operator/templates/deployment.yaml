@@ -1,0 +1,103 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "_helpers.fullname" . }}
+  labels:
+    app.kubernetes.io/component: operator
+    {{- include "_helpers.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "_helpers.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/secret-classes.yaml") . | sha256sum }}
+        kubectl.kubernetes.io/default-container: {{ .Chart.Name }}
+      {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/component: operator
+        {{- include "_helpers.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "_helpers.fullname" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /manager
+          args:
+            - --leader-elect
+            - "--zap-log-level={{ .Values.operator.logLevel }}"
+            - "--zap-encoder={{ .Values.operator.logEncoding }}"
+            - --zap-time-encoding=rfc3339
+            - --zap-stacktrace-level=error
+            - "--telegraf-default-class={{ .Values.operator.classes.default }}"
+            - --telegraf-classes-directory=/etc/config/classes
+            {{- if .Values.operator.enableInternalPlugin }}
+            - --telegraf-enable-internal-plugin
+            {{- end }}
+            - "--telegraf-image={{ .Values.sidecar.image }}"
+            - "--telegraf-requests-cpu={{ .Values.sidecar.resources.requests.cpu }}"
+            - "--telegraf-requests-memory={{ .Values.sidecar.resources.requests.memory }}"
+            - "--telegraf-limits-cpu={{ .Values.sidecar.resources.limits.cpu }}"
+            - "--telegraf-limits-memory={{ .Values.sidecar.resources.limits.memory }}"
+          ports:
+            - name: http
+              containerPort: 9443
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: certs
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+            - name: classes
+              mountPath: /etc/config/classes
+              readOnly: true
+      volumes:
+        - name: certs
+          secret:
+            defaultMode: 420
+            secretName: {{ include "_helpers.fullname" . }}-tls
+        - name: classes
+          secret:
+            secretName: {{ .Values.operator.classes.secretName }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

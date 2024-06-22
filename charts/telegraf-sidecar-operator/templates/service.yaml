@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "_helpers.fullname" . }}
+  labels:
+    {{- include "_helpers.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 443
+      targetPort: http
+      protocol: TCP
+      name: https
+  selector:
+    {{- include "_helpers.selectorLabels" . | nindent 4 }}

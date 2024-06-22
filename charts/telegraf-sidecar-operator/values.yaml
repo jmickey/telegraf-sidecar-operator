@@ -1,0 +1,64 @@
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 2
+
+image:
+  repository: docker.io/jmickey/telegraf-sidecar-operator
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+operator:
+  # Can be one of 'debug', 'info', 'error'
+  logLevel: info
+  # Log encoding (one of 'json' or 'console')
+  logEncoding: console
+  enableInternalPlugin: true
+  classes:
+    default: default
+    secretName: telegraf-classes
+    data:
+      default: |
+        [agent]
+          hostname = "$NODENAME"
+        [[outputs.influxdb_v2]]
+          urls = ["http://influxdb.influxdb:8086"]
+        [global_tags]
+          pod_name = "$HOSTNAME"
+          nodename = "$NODENAME"
+          namespace = "$NAMESPACE"
+          type = "app"
+
+serviceAccount:
+  # Annotations to add to the service account
+  annotations: {}
+
+sidecar:
+  image: docker.io/library/telegraf:1.30-alpine
+  resources:
+    requests:
+      cpu: 10m
+      memory: 56Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
