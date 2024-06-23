@@ -5,10 +5,10 @@ on:
     branches:
       - main
     paths:
-      - 'charts/telegraf-sidecar-operator/**'
+      - "charts/telegraf-sidecar-operator/**"
   pull_request:
     paths:
-      - 'charts/telegraf-sidecar-operator/**'
+      - "charts/telegraf-sidecar-operator/**"
   workflow_dispatch: {}
 
 permissions:
@@ -16,6 +16,7 @@ permissions:
 
 jobs:
   chart-testing:
+    name: Chart Testing
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -31,7 +32,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
-          python-version: '3.x'
+          python-version: "3.x"
           check-latest: true
 
       - name: Setup chart-testing
