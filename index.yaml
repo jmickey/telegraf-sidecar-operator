@@ -2,6 +2,27 @@ apiVersion: v1
 entries:
   telegraf-sidecar-operator:
   - apiVersion: v2
+    appVersion: 0.1.1
+    created: "2024-06-23T22:52:38.972441143Z"
+    description: Use Kubernetes Pod annotations to automatically inject and configure
+      Telegraf sidecar containers.
+    digest: de58109ee9d5da6020fa4f8e0ead7bfd443ddd47d21398c31820418c314258f5
+    home: https://github.com/jmickey/telegraf-sidecar-operator
+    keywords:
+    - telegraf
+    - telegraf-sidecar-operator
+    - kubernetes-telegraf-sidecar
+    kubeVersion: '>= 1.19.0-0'
+    maintainers:
+    - email: github@mickey.dev
+      name: jmickey
+      url: https://mickey.dev
+    name: telegraf-sidecar-operator
+    type: application
+    urls:
+    - https://github.com/jmickey/telegraf-sidecar-operator/releases/download/helm-chart-1.0.0/telegraf-sidecar-operator-1.0.0.tgz
+    version: 1.0.0
+  - apiVersion: v2
     appVersion: main
     created: "2024-06-23T01:46:21.638935223Z"
     description: Use Kubernetes Pod annotations to automatically inject and configure
@@ -42,4 +63,4 @@ entries:
     urls:
     - https://github.com/jmickey/telegraf-sidecar-operator/releases/download/telegraf-sidecar-operator-0.1.0/telegraf-sidecar-operator-0.1.0.tgz
     version: 0.1.0
-generated: "2024-06-23T01:46:21.638945572Z"
+generated: "2024-06-23T22:52:38.972462623Z"
