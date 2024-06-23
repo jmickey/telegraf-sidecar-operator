@@ -71,7 +71,11 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}, builder.WithPredicates(
 			labelPredicate,
-			predicate.GenerationChangedPredicate{},
+			predicate.Or(
+				predicate.GenerationChangedPredicate{},
+				predicate.LabelChangedPredicate{},
+				predicate.AnnotationChangedPredicate{},
+			),
 		)).
 		Owns(&corev1.Secret{}).
 		Complete(r)
@@ -139,7 +143,7 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 	if err != nil {
 		msg := fmt.Sprintf("error building telegraf config: %s", err.Error())
 		r.Recorder.Event(obj, corev1.EventTypeWarning, "InvalidTelegrafConfiguration", msg)
-		log.Info(msg)
+		log.Error(err, "error building telegraf config")
 
 		return ctrl.Result{}, fmt.Errorf("error building telegraf configuration: %w", err)
 	}
@@ -164,7 +168,7 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 	if err := controllerutil.SetOwnerReference(obj, secret, r.Scheme); err != nil {
 		r.Recorder.Eventf(obj, corev1.EventTypeWarning, "SetOwnerReferenceError",
 			"failed to set owner reference for secret: %s: %s", secret.GetName(), err.Error())
-		log.Error(err, "failed to set owner reference for secret")
+		log.Error(err, "failed to set owner reference for secret", "secret", secret.GetName())
 		return ctrl.Result{}, fmt.Errorf("failed to set owner reference for secret: %w", err)
 	}
 
@@ -181,6 +185,7 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 
 	msg := fmt.Sprintf("successfully create telegraf config secret: %s", secret.GetName())
 	r.Recorder.Event(obj, corev1.EventTypeNormal, "TelegrafConfigCreateSuccessful", msg)
+	log.Info("successfully created telegraf config secret", "secret", secret.GetName())
 
 	return ctrl.Result{}, nil
 }
