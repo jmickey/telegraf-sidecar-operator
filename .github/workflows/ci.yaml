@@ -73,8 +73,6 @@ jobs:
       - name: Docker Metadata
         id: docker-metadata
         uses: docker/metadata-action@8e5442c4ef9f78752691e2d8f8d19755c6f78e81 # v5.5.1
-        env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
         with:
           images: |
             jmickey/telegraf-sidecar-operator
@@ -122,6 +120,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+          outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=${{ fromJSON(steps.docker-metadata.outputs.json).labels['org.opencontainers.image.description'] }}
 
       - name: Setup Cosign
         if: github.event_name != 'pull_request'
