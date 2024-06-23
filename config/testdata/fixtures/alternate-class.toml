@@ -1,8 +1,0 @@
-[inputs]
-
-[outputs]
-
-  [[outputs.file]]
-    files = ["stdout"]
-
-[global_tags]

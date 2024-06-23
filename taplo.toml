@@ -1,6 +1,0 @@
-[formatting]
-  indent_entries = true
-  trailing_newline = true
-  align_entries = false
-  indent_tables = true
-  array_auto_expand = false
