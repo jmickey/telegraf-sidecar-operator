@@ -205,28 +205,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		})
 	}
 
-	envConfigMapKeyRefs := metadata.GetAnnotationsWithPrefix(annotations,
-		metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
-	for name, value := range envConfigMapKeyRefs {
-		selector := strings.SplitN(value, ".", 2)
-		if len(selector) == 2 {
-			c.env = append(c.env, corev1.EnvVar{
-				Name: name,
-				ValueFrom: &corev1.EnvVarSource{
-					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
-						LocalObjectReference: corev1.LocalObjectReference{
-							Name: selector[0],
-						},
-						Key: selector[1],
-					},
-				},
-			})
-		} else {
-			c.log.Info("failed to parse configmapref for %s, invalid value: %s", name, value)
-		}
-	}
-
-	envSecretKeyRefs := metadata.GetAnnotationsWithPrefix(annotations, metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
+	envSecretKeyRefs := metadata.GetAnnotationsWithPrefix(annotations, metadata.SidecarEnvSecretKeyRefPrefixAnnotation)
 	for name, value := range envSecretKeyRefs {
 		selector := strings.SplitN(value, ".", 2)
 		if len(selector) == 2 {
@@ -243,6 +222,26 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 			})
 		} else {
 			c.log.Info("failed to parse secretkeyref for %s, invalid value: %s", name, value)
+		}
+	}
+
+	envConfigMapKeyRefs := metadata.GetAnnotationsWithPrefix(annotations, metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation)
+	for name, value := range envConfigMapKeyRefs {
+		selector := strings.SplitN(value, ".", 2)
+		if len(selector) == 2 {
+			c.env = append(c.env, corev1.EnvVar{
+				Name: name,
+				ValueFrom: &corev1.EnvVarSource{
+					ConfigMapKeyRef: &corev1.ConfigMapKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{
+							Name: selector[0],
+						},
+						Key: selector[1],
+					},
+				},
+			})
+		} else {
+			c.log.Info("failed to parse configmapref for %s, invalid value: %s", name, value)
 		}
 	}
 }

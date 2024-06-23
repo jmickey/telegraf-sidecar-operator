@@ -18,6 +18,7 @@ package injectorwebhook
 
 import (
 	"context"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -25,8 +26,15 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
+)
+
+const (
+	timeout   = time.Second * 10
+	interval  = time.Millisecond * 250
+	namespace = "default"
 )
 
 var (
@@ -34,174 +42,423 @@ var (
 )
 
 var _ = Describe("Sidecar injector webhook", func() {
-	AfterEach(func() {
-		pod := &corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-pod",
-				Namespace: "default",
-			},
-		}
-		err := k8sClient.Delete(testCtx, pod)
-		ExpectWithOffset(1, err).NotTo(HaveOccurred())
-	})
-
 	When("Creating a pod under the defaulting webhook", func() {
 		Context("And there is no telegraf annotation", func() {
-			var pod *corev1.Pod
-			BeforeEach(func() {
-				pod = &corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test-pod",
-						Namespace: "default",
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "test-container",
-								Image: "ubuntu:latest",
-							},
-						},
-					},
-				}
-			})
-
 			It("Should allow the pod admission and not inject the telegraf container", func() {
-				err := k8sClient.Create(testCtx, pod)
-				Expect(err).NotTo(HaveOccurred())
+				podName := "no-annotations"
+				pod := newTestPod(podName, nil)
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
 
 				pod = &corev1.Pod{}
-				lookupKey := types.NamespacedName{
-					Namespace: "default",
-					Name:      "test-pod",
-				}
-				err = k8sClient.Get(testCtx, lookupKey, pod)
-				ExpectWithOffset(1, err).NotTo(HaveOccurred())
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
 				for _, c := range pod.Spec.Containers {
-					Expect(c.Name).NotTo(Equal("telegraf"))
+					Expect(c.Name).NotTo(Equal(containerName))
 				}
+
+				cleanUpPod(pod.GetName())
 			})
 		})
-	})
 
-	Context("And there is a telegraf annotation", func() {
-		var pod *corev1.Pod
-		BeforeEach(func() {
-			pod = &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pod",
-					Namespace: "default",
-					Annotations: map[string]string{
-						metadata.TelegrafConfigIntervalAnnotation: "10s",
+		Context("And there is a telegraf annotation", func() {
+			It("Should inject the telegraf container and config volume with default settings", func() {
+				podName := "sidecar-defaults"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+				Expect(len(pod.Spec.Volumes)).To(Equal(1))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						Expect(container.Image).To(Equal(defaultTelegrafImage))
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+						Expect(container.Resources.Limits.Cpu().String()).To(Equal(defaultLimitsCPU))
+						Expect(container.Resources.Limits.Memory().String()).To(Equal(defaultLimitsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should proceed with injection using defaults if resource annotations are invalid", func() {
+				podName := "invalid-resource-values"
+				invalidValue := "1000x"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarRequestsCPUAnnotation:    invalidValue,
+					metadata.SidecarLimitsCPUAnnotation:      invalidValue,
+					metadata.SidecarRequestsMemoryAnnotation: invalidValue,
+					metadata.SidecarLimitsMemoryAnnotation:   invalidValue,
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+				Expect(len(pod.Spec.Volumes)).To(Equal(1))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+						Expect(container.Resources.Limits.Cpu().String()).To(Equal(defaultLimitsCPU))
+						Expect(container.Resources.Limits.Memory().String()).To(Equal(defaultLimitsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should proceed overriding container resources with annotation values", func() {
+				var (
+					podName                = "sidecar-override-resources"
+					overrideRequestsCPU    = "500m"
+					overrideRequestsMemory = "500Mi"
+					overrideLimitsCPU      = "800m"
+					overrideLimitsMemory   = "800Mi"
+				)
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarRequestsCPUAnnotation:    overrideRequestsCPU,
+					metadata.SidecarRequestsMemoryAnnotation: overrideRequestsMemory,
+					metadata.SidecarLimitsCPUAnnotation:      overrideLimitsCPU,
+					metadata.SidecarLimitsMemoryAnnotation:   overrideLimitsMemory,
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+				Expect(len(pod.Spec.Volumes)).To(Equal(1))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(overrideRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(overrideRequestsMemory))
+						Expect(container.Resources.Limits.Cpu().String()).To(Equal(overrideLimitsCPU))
+						Expect(container.Resources.Limits.Memory().String()).To(Equal(overrideLimitsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should add envFrom with secretRef if `secret-env` annotation is present", func() {
+				podName := "sidecar-secret-env"
+				secretName := "secret-env"
+
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: namespace,
 					},
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{
-						{
-							Name:  "test-container",
-							Image: "ubuntu:latest",
-						},
+					StringData: map[string]string{
+						"MY_VAR": "my_value",
 					},
-				},
-			}
-		})
-
-		It("Should inject the telegraf container and config volume with default settings", func() {
-			err := k8sClient.Create(testCtx, pod)
-			Expect(err).NotTo(HaveOccurred())
-
-			pod = &corev1.Pod{}
-			lookupKey := types.NamespacedName{
-				Name:      "test-pod",
-				Namespace: "default",
-			}
-			err = k8sClient.Get(testCtx, lookupKey, pod)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(pod.Spec.Containers)).To(Equal(2))
-			Expect(len(pod.Spec.Volumes)).To(Equal(1))
-
-			var found bool
-			for _, container := range pod.Spec.Containers {
-				if container.Name == containerName {
-					found = true
-					Expect(container.Image).To(Equal(defaultTelegrafImage))
-					Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
-					Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
-					Expect(container.Resources.Limits.Cpu().String()).To(Equal(defaultLimitsCPU))
-					Expect(container.Resources.Limits.Memory().String()).To(Equal(defaultLimitsMemory))
 				}
-			}
-			Expect(found).To(BeTrue())
-		})
+				Expect(k8sClient.Create(testCtx, secret)).To(Succeed())
 
-		It("Should proceed with injection using defaults if resource annotations are invalid", func() {
-			invalidValue := "1000x"
-			pod.Annotations[metadata.SidecarRequestsCPUAnnotation] = invalidValue
-			pod.Annotations[metadata.SidecarLimitsCPUAnnotation] = invalidValue
-			pod.Annotations[metadata.SidecarRequestsMemoryAnnotation] = invalidValue
-			pod.Annotations[metadata.SidecarLimitsMemoryAnnotation] = invalidValue
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarEnvSecretAnnotation: secret.GetName(),
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
 
-			err := k8sClient.Create(testCtx, pod)
-			Expect(err).NotTo(HaveOccurred())
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
 
-			pod = &corev1.Pod{}
-			lookupKey := types.NamespacedName{
-				Name:      "test-pod",
-				Namespace: "default",
-			}
-			err = k8sClient.Get(testCtx, lookupKey, pod)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(pod.Spec.Containers)).To(Equal(2))
-			Expect(len(pod.Spec.Volumes)).To(Equal(1))
-
-			var found bool
-			for _, container := range pod.Spec.Containers {
-				if container.Name == containerName {
-					found = true
-					Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
-					Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
-					Expect(container.Resources.Limits.Cpu().String()).To(Equal(defaultLimitsCPU))
-					Expect(container.Resources.Limits.Memory().String()).To(Equal(defaultLimitsMemory))
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						Expect(container.EnvFrom[0].SecretRef.LocalObjectReference.Name).To(Equal(secretName))
+					}
 				}
-			}
-			Expect(found).To(BeTrue())
-		})
+				Expect(found).To(BeTrue())
 
-		It("Should proceed override container resources with annotation values", func() {
-			var (
-				overrideRequestsCPU    = "500m"
-				overrideRequestsMemory = "500Mi"
-				overrideLimitsCPU      = "800m"
-				overrideLimitsMemory   = "800Mi"
-			)
-			pod.Annotations[metadata.SidecarRequestsCPUAnnotation] = overrideRequestsCPU
-			pod.Annotations[metadata.SidecarRequestsMemoryAnnotation] = overrideRequestsMemory
-			pod.Annotations[metadata.SidecarLimitsCPUAnnotation] = overrideLimitsCPU
-			pod.Annotations[metadata.SidecarLimitsMemoryAnnotation] = overrideLimitsMemory
+				cleanUpPod(pod.GetName())
+				cleanUpObject(&corev1.Secret{}, types.NamespacedName{Name: secretName, Namespace: namespace})
+			})
 
-			err := k8sClient.Create(testCtx, pod)
-			Expect(err).NotTo(HaveOccurred())
+			It("Should add envFrom with configMapRef if `configmap-env` annotation is present", func() {
+				podName := "sidecar-configmap-env"
+				configMapName := "configmap-env"
 
-			pod = &corev1.Pod{}
-			lookupKey := types.NamespacedName{
-				Name:      "test-pod",
-				Namespace: "default",
-			}
-			err = k8sClient.Get(testCtx, lookupKey, pod)
-			Expect(err).NotTo(HaveOccurred())
-			Expect(len(pod.Spec.Containers)).To(Equal(2))
-			Expect(len(pod.Spec.Volumes)).To(Equal(1))
-
-			var found bool
-			for _, container := range pod.Spec.Containers {
-				if container.Name == containerName {
-					found = true
-					Expect(container.Resources.Requests.Cpu().String()).To(Equal(overrideRequestsCPU))
-					Expect(container.Resources.Requests.Memory().String()).To(Equal(overrideRequestsMemory))
-					Expect(container.Resources.Limits.Cpu().String()).To(Equal(overrideLimitsCPU))
-					Expect(container.Resources.Limits.Memory().String()).To(Equal(overrideLimitsMemory))
+				configMap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configMapName,
+						Namespace: namespace,
+					},
+					Data: map[string]string{
+						"MY_VAR": "my_value",
+					},
 				}
-			}
-			Expect(found).To(BeTrue())
+				Expect(k8sClient.Create(testCtx, configMap)).To(Succeed())
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarEnvConfigMapAnnotation: configMap.GetName(),
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						Expect(len(container.EnvFrom)).To(Equal(1))
+						Expect(container.EnvFrom[0].ConfigMapRef.LocalObjectReference.Name).To(Equal(configMapName))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+				cleanUpObject(&corev1.ConfigMap{}, types.NamespacedName{Name: configMapName, Namespace: namespace})
+			})
+
+			It("Should add an environment variable literal value if `env-literal-` annotation exists", func() {
+				podName := "sidecar-env-literal"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarEnvLiteralPrefixAnnotation + "MY_VAR": "my_value",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						for _, envVar := range container.Env {
+							if envVar.Name == "MY_VAR" {
+								found = true
+								Expect(envVar.Value).To(Equal("my_value"))
+							}
+						}
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should add an environment variable FieldRef value if `/env-fieldref-` annotation exists", func() {
+				podName := "sidecar-env-fieldref"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarEnvFieldRefPrefixAnnoation + "POD_IP": "status.podIP",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						for _, envVar := range container.Env {
+							if envVar.Name == "POD_IP" {
+								found = true
+								Expect(envVar.ValueFrom.FieldRef.FieldPath).To(Equal("status.podIP"))
+							}
+						}
+
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should add an environment variable ConfigMapRef value if `/env-configmapkeyref-` annotation exists", func() {
+				podName := "sidecar-env-configmapkeyref"
+				configMapName := "configmap-env-configmapkeyref"
+
+				configMap := &corev1.ConfigMap{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      configMapName,
+						Namespace: namespace,
+					},
+					Data: map[string]string{
+						"MY_VAR": "my_value",
+					},
+				}
+				Expect(k8sClient.Create(testCtx, configMap)).To(Succeed())
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation + "MY_VAR": configMapName + ".MY_VAR",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						for _, envVar := range container.Env {
+							if envVar.Name == "MY_VAR" {
+								found = true
+								Expect(envVar.ValueFrom.ConfigMapKeyRef.Name).To(Equal(configMapName))
+								Expect(envVar.ValueFrom.ConfigMapKeyRef.Key).To(Equal("MY_VAR"))
+							}
+						}
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+				cleanUpObject(&corev1.ConfigMap{}, types.NamespacedName{Name: configMapName, Namespace: namespace})
+			})
+
+			It("Should add an environment variable ConfigMapRef value if `/env-secretkeyref-` annotation exists", func() {
+				podName := "sidecar-env-secretkeyref"
+				secretName := "secret-env-secretkeyref"
+
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      secretName,
+						Namespace: namespace,
+					},
+					StringData: map[string]string{
+						"MY_VAR": "my_value",
+					},
+				}
+				Expect(k8sClient.Create(testCtx, secret)).To(Succeed())
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarEnvSecretKeyRefPrefixAnnotation + "MY_VAR": secretName + ".MY_VAR",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						for _, envVar := range container.Env {
+							if envVar.Name == "MY_VAR" {
+								found = true
+								Expect(envVar.ValueFrom.SecretKeyRef.Name).To(Equal(secretName))
+								Expect(envVar.ValueFrom.SecretKeyRef.Key).To(Equal("MY_VAR"))
+							}
+						}
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+				cleanUpObject(&corev1.Secret{}, types.NamespacedName{Name: secretName, Namespace: namespace})
+			})
+
+			It("Should add additional volume mounts when `volume-mounts` annotation exists", func() {
+				podName := "sidecar-volume-mounts"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.SidecarVolumeMountsAnnotation: "{ \"log-vol\": \"/var/log/app\" }",
+				})
+				pod.Spec.Volumes = append(pod.Spec.Volumes, corev1.Volume{
+					Name: "log-vol",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						for _, mount := range container.VolumeMounts {
+							if mount.Name == "log-vol" {
+								found = true
+								Expect(mount.MountPath).To(Equal("/var/log/app"))
+							}
+						}
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
 		})
 	})
 })
+
+func newTestPod(name string, annotations map[string]string) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Namespace:   namespace,
+			Labels:      nil,
+			Annotations: annotations,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{
+				{
+					Name:  "test-container",
+					Image: "ubuntu:latest",
+				},
+			},
+		},
+	}
+}
+
+func cleanUpPod(name string) {
+	podKey := types.NamespacedName{Name: name, Namespace: namespace}
+	Eventually(func() error {
+		p := &corev1.Pod{}
+		Expect(k8sClient.Get(testCtx, podKey, p)).Should(Succeed())
+		return k8sClient.Delete(testCtx, p)
+	}, timeout, interval).Should(Succeed())
+
+	// Ensure delete has completed successfully
+	Eventually(func() error {
+		p := &corev1.Pod{}
+		return k8sClient.Get(testCtx, podKey, p)
+	}, timeout, interval).ShouldNot(Succeed())
+}
+
+func cleanUpObject(object client.Object, lookupKey types.NamespacedName) {
+	Eventually(func() error {
+		Expect(k8sClient.Get(testCtx, lookupKey, object)).Should(Succeed())
+		return k8sClient.Delete(testCtx, object)
+	}, timeout, interval).Should(Succeed())
+
+	Eventually(func() error {
+		return k8sClient.Get(testCtx, lookupKey, object)
+	}, timeout, interval).ShouldNot(Succeed())
+}
