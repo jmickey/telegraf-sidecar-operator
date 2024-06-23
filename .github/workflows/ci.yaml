@@ -113,6 +113,7 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.docker-metadata.outputs.tags }}
           labels: ${{ steps.docker-metadata.outputs.labels }}
+          annotations: ${{ steps.docker-metadata.outputs.annotations }}
           build-args: |
             BUILD_VERSION=${{ github.ref_name }}
             GIT_COMMIT=${{ github.sha }}
