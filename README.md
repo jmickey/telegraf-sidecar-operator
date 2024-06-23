@@ -20,7 +20,7 @@ Pod annotations used to customize the sidecar container and configure telegraf a
 The operator consists of two primary components:
 
 1. Mutating Admission Webhook used to inject the sidecar container into newly created Pods.
-2. A controller, which detects when a Pod has been admitted into the cluster with a telegraf sidecar container, and creates a corresponding Kubernetes secret with the telegraf configuration values. 
+2. A controller, which detects when a Pod has been admitted into the cluster with a telegraf sidecar container, and creates a corresponding Kubernetes secret with the telegraf configuration values.
 
 `telegraf-config` secrets are automatically removed by the Kubernetes garbage collection process when pods are deleted, no longer relying on specific event ordering or internal logic to ensure these secrets are properly cleaned up.
 
@@ -28,8 +28,8 @@ The operator consists of two primary components:
 
 This project is still in active development, and may not be ready for production use cases. The project supports the majority of the pod annotations available in the InfluxData Telegraf Operator, with some notable exceptions:
 
-- The `telegraf.influxdata.com/port` annotation has been deprecated and will be removed in a future release. Use `telegraf.influxdata.com/ports` instead.
-- Istio annotations: The separate Telegraf sidecar specifically for Istio is currently not supported. Injecting a completely separate    Telegraf sidecar container just to monitor the istio proxy sidecar doesn't feel like the correct solution. Please [open an issue](https://github.com/jmickey/telegraf-sidecar-operator/issues/new) if you use Istio and the current annotations are not sufficient.
+- The `telegraf.influxdata.com/port` annotation has been deprecated and will be removed in a future release. Use`telegraf.influxdata.com/ports` instead.
+- Istio annotations: The separate Telegraf sidecar specifically for Istio is currently not supported. Injecting a completely separate Telegraf sidecar container just to monitor the istio proxy sidecar doesn't feel like the correct solution. Please [open an issue](https://github.com/jmickey/telegraf-sidecar-operator/issues/new) if you use Istio and the current annotations are not sufficient.
 
 ## Deployment
 
@@ -46,7 +46,7 @@ To install the most recent version of the operator via Helm:
 ```shell
 helm repo add tso https://telegraf-sidecar-operator.mickey.dev
 helm repo update telegraf-sidecar-operator
-helm install telegraf-sidecar-operator tso/telegraf-sidecar-operator 
+helm install telegraf-sidecar-operator tso/telegraf-sidecar-operator
 ```
 
 Further documentation on the Helm installation and available customizations is available [here](./charts/telegraf-sidecar-operator).
@@ -166,23 +166,25 @@ Pod annotations can be used to configure both the sidecar container itself, as w
 
 ### Sidecar Annotations
 
-| Annotation                                          | Default                | Description                                                                                                  |
-| --------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `telegraf.influxdata.com/image`                     | `telegraf:1.30-alpine` | Override the telegraf sidecar image.                                                                         |
-| `telegraf.influxdata.com/requests-cpu`              | `10m`                  | Override the sidecar CPU resource requests.                                                                  |
-| `telegraf.influxdata.com/requests-memory`           | `56Mi`                 | Override the sidecar memory resource requests.                                                               |
-| `telegraf.influxdata.com/limits-cpu`                | `100m`                 | Override the sidecar CPU resource limits.                                                                    |
-| `telegraf.influxdata.com/limits-memory`             | `128Mi`                | Override the sidecar memory resource limits.                                                                 |
-| `telegraf.influxdata.com/secret-env`                | `nil`                  | Can be used to mount a secret and all its keys and environment variables in the sidecar container.           |
-| `telegraf.influxdata.com/env-literal-<VAR>`         | `nil`                  | Can be used to add a literal value as an environment variable to the sidecar container.                      |
-| `telegraf.influxdata.com/env-fieldred-<VAR>`        | `nil`                  | Can be used to add a Kubernetes downstream API FieldRef as an environment variable to the sidecar container. |
-| `telegraf.influxdata.com/env-configmapkeyraf-<VAR>` | `nil`                  | Can be used to add a ConfigMap key value as an environment variable to the sidecar container.                |
-| `telegraf.influxdata.com/env-secretkeyref-<VAR>`    | `nil`                  | Can be used to a Secret key value as an environment variable to the sidecar container.                       |
+| Annotation                                          | Default                | Description                                                                                                                                            |
+| --------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `telegraf.influxdata.com/image`                     | `telegraf:1.30-alpine` | Override the telegraf sidecar image.                                                                                                                   |
+| `telegraf.influxdata.com/requests-cpu`              | `10m`                  | Override the sidecar CPU resource requests.                                                                                                            |
+| `telegraf.influxdata.com/requests-memory`           | `56Mi`                 | Override the sidecar memory resource requests.                                                                                                         |
+| `telegraf.influxdata.com/limits-cpu`                | `100m`                 | Override the sidecar CPU resource limits.                                                                                                              |
+| `telegraf.influxdata.com/limits-memory`             | `128Mi`                | Override the sidecar memory resource limits.                                                                                                           |
+| `telegraf.influxdata.com/secret-env`                | `nil`                  | Can be used to mount a secret and all its keys and environment variables in the sidecar container.                                                     |
+| `telegraf.influxdata.com/configmap-env`             | `nil`                  | Can be used to mount a configmap and all its keys and environment variables in the sidecar container.                                                  |
+| `telegraf.influxdata.com/volume-mounts`             | `nil`                  | Can be used to mount additional volumes into the sidecar container. Must be in the format: `'{ "<volumeName>": "<mountPath>" }'`                         |
+| `telegraf.influxdata.com/env-literal-<VAR>`         | `nil`                  | Can be used to add a literal value as an environment variable to the sidecar container.                                                                |
+| `telegraf.influxdata.com/env-fieldred-<VAR>`        | `nil`                  | Can be used to add a Kubernetes downstream API FieldRef as an environment variable to the sidecar container.                                           |
+| `telegraf.influxdata.com/env-secretkeyref-<VAR>`    | `nil`                  | Can be used to a Secret key value as an environment variable to the sidecar container. Must be in the format `"<secretName>.<secretKey>"`              |
+| `telegraf.influxdata.com/env-configmapkeyraf-<VAR>` | `nil`                  | Can be used to add a ConfigMap key value as an environment variable to the sidecar container. Must be in the format `"<configMapName>.<configMapKey>"` |
 
 ### Telegraf Configuration Annotations
 
 | Annotation                                         | Default             | Description                                                                                                                                                                                                                                                                                                 |
-| -------------------------------------------------- | ------------------- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| -------------------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `telegraf.influxdata.com/class`                    | `default`           | Specifies which telegraf config class to use. Classes are configured in the operator.                                                                                                                                                                                                                       |
 | `telegraf.influxdata.com/ports`                    | `nil`               | Can be used to configure one or more ports to be scraped by the Prometheus input plugin. Must be a string of comma separated values.                                                                                                                                                                        |
 | `telegraf.influxdata.com/path`                     | `/metrics`          | Can be used to override the HTTP path to be scraped by the Prometheus input plugin. Applies to all ports if multiple are provided.                                                                                                                                                                          |
@@ -199,7 +201,7 @@ Pod annotations can be used to configure both the sidecar container itself, as w
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
-  # ...
+# ...
 spec:
   template:
     metadata:
@@ -217,7 +219,7 @@ spec:
 
 ## Contributing
 
- // TODO
+// TODO
 
 ## License
 

@@ -45,6 +45,15 @@ const (
 	// all its keys as environment variables in the sidecar container.
 	SidecarEnvSecretAnnotation = Prefix + "/secret-env"
 
+	// SidecarEnvConfigMapAnnotation can be used to mount a ConfigMap
+	// and all its keys as environment variables in the sidecar container.
+	SidecarEnvConfigMapAnnotation = Prefix + "/configmap-env"
+
+	// SidecarVolumeMountsAnnotation can be used to mount additional
+	// volumes into the sidecar container. Must be in the format:
+	// `{ "<volumeName>": "<mountPath>" }`
+	SidecarVolumeMountsAnnotation = Prefix + "/volume-mounts"
+
 	/*
 	 *  Sidecar Container Prefix Annotations
 	 */
@@ -58,13 +67,13 @@ const (
 	// container.
 	SidecarEnvFieldRefPrefixAnnoation = Prefix + "/env-fieldref-"
 
-	// SidecarEnvConfigMapKeyRefPrefixAnnotation can be used to add a ConfigMap key
-	// value as an environment variable to the sidecar container.
-	SidecarEnvConfigMapKeyRefPrefixAnnotation = Prefix + "/env-configmapkeyref-"
-
 	// SidecarEnvSecretKeyRefPrefixAnnotation can be used to add a Secret key
 	// value as an environment variable to the sidecar container.
 	SidecarEnvSecretKeyRefPrefixAnnotation = Prefix + "/env-secretkeyref-"
+
+	// SidecarEnvConfigMapKeyRefPrefixAnnotation can be used to add a ConfigMap key
+	// value as an environment variable to the sidecar container.
+	SidecarEnvConfigMapKeyRefPrefixAnnotation = Prefix + "/env-configmapkeyref-"
 
 	/*
 	 * Telagraf Configuration Annotations
