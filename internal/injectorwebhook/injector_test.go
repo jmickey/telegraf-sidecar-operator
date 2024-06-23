@@ -46,7 +46,7 @@ var _ = Describe("Sidecar injector webhook", func() {
 	})
 
 	When("Creating a pod under the defaulting webhook", func() {
-		Context("And there is no telegraf annoation", func() {
+		Context("And there is no telegraf annotation", func() {
 			var pod *corev1.Pod
 			BeforeEach(func() {
 				pod = &corev1.Pod{

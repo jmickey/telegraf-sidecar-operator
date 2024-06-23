@@ -166,18 +166,20 @@ Pod annotations can be used to configure both the sidecar container itself, as w
 
 ### Sidecar Annotations
 
-| Annotation                                          | Default                | Description                                                                                                  |
-| --------------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `telegraf.influxdata.com/image`                     | `telegraf:1.30-alpine` | Override the telegraf sidecar image.                                                                         |
-| `telegraf.influxdata.com/requests-cpu`              | `10m`                  | Override the sidecar CPU resource requests.                                                                  |
-| `telegraf.influxdata.com/requests-memory`           | `56Mi`                 | Override the sidecar memory resource requests.                                                               |
-| `telegraf.influxdata.com/limits-cpu`                | `100m`                 | Override the sidecar CPU resource limits.                                                                    |
-| `telegraf.influxdata.com/limits-memory`             | `128Mi`                | Override the sidecar memory resource limits.                                                                 |
-| `telegraf.influxdata.com/secret-env`                | `nil`                  | Can be used to mount a secret and all its keys and environment variables in the sidecar container.           |
-| `telegraf.influxdata.com/env-literal-<VAR>`         | `nil`                  | Can be used to add a literal value as an environment variable to the sidecar container.                      |
-| `telegraf.influxdata.com/env-fieldred-<VAR>`        | `nil`                  | Can be used to add a Kubernetes downstream API FieldRef as an environment variable to the sidecar container. |
-| `telegraf.influxdata.com/env-configmapkeyraf-<VAR>` | `nil`                  | Can be used to add a ConfigMap key value as an environment variable to the sidecar container.                |
-| `telegraf.influxdata.com/env-secretkeyref-<VAR>`    | `nil`                  | Can be used to a Secret key value as an environment variable to the sidecar container.                       |
+| Annotation                                          | Default                | Description                                                                                                                     |
+|-----------------------------------------------------| ---------------------- |---------------------------------------------------------------------------------------------------------------------------------|
+| `telegraf.influxdata.com/image`                     | `telegraf:1.30-alpine` | Override the telegraf sidecar image.                                                                                            |
+| `telegraf.influxdata.com/requests-cpu`              | `10m`                  | Override the sidecar CPU resource requests.                                                                                     |
+| `telegraf.influxdata.com/requests-memory`           | `56Mi`                 | Override the sidecar memory resource requests.                                                                                  |
+| `telegraf.influxdata.com/limits-cpu`                | `100m`                 | Override the sidecar CPU resource limits.                                                                                       |
+| `telegraf.influxdata.com/limits-memory`             | `128Mi`                | Override the sidecar memory resource limits.                                                                                    |
+| `telegraf.influxdata.com/secret-env`                | `nil`                  | Can be used to mount a secret and all its keys and environment variables in the sidecar container.                              |
+| `telegraf.influxdata.com/configmap-env`             | `nil`                  | Can be used to mount a configmap and all its keys and environment variables in the sidecar container.                           |
+| `telegraf.influxdata.com/volume-mounts`             | `nil`                  | Can be used to mount additional volumes into the sidecar container. Must be in the format: `{ "<volumeName>": "<mountPath>" }`  |
+| `telegraf.influxdata.com/env-literal-<VAR>`         | `nil`                  | Can be used to add a literal value as an environment variable to the sidecar container.                                         |
+| `telegraf.influxdata.com/env-fieldred-<VAR>`        | `nil`                  | Can be used to add a Kubernetes downstream API FieldRef as an environment variable to the sidecar container.                    |
+| `telegraf.influxdata.com/env-configmapkeyraf-<VAR>` | `nil`                  | Can be used to add a ConfigMap key value as an environment variable to the sidecar container.                                   |
+| `telegraf.influxdata.com/env-secretkeyref-<VAR>`    | `nil`                  | Can be used to a Secret key value as an environment variable to the sidecar container.                                          |
 
 ### Telegraf Configuration Annotations
 

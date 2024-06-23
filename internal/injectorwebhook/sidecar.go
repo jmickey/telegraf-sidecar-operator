@@ -18,6 +18,7 @@ package injectorwebhook
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -44,6 +45,7 @@ type containerConfig struct {
 	image          string
 	env            []corev1.EnvVar
 	envFrom        []corev1.EnvFromSource
+	volumeMounts   []corev1.VolumeMount
 }
 
 func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string) (*containerConfig, error) {
@@ -157,6 +159,32 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 		})
 	}
 
+	if configMapEnv, ok := annotations[metadata.SidecarEnvConfigMapAnnotation]; ok {
+		c.envFrom = append(c.envFrom, corev1.EnvFromSource{
+			ConfigMapRef: &corev1.ConfigMapEnvSource{
+				LocalObjectReference: corev1.LocalObjectReference{
+					Name: configMapEnv,
+				},
+				Optional: func(x bool) *bool { return &x }(true),
+			},
+		})
+	}
+
+	if volumeMountsStr, ok := annotations[metadata.SidecarVolumeMountsAnnotation]; ok {
+		mounts := make(map[string]string)
+		if err := json.Unmarshal([]byte(volumeMountsStr), &mounts); err != nil {
+			c.log.Error(err, "failed to unmarshal volumeMounts")
+		} else {
+			for name, path := range mounts {
+				c.volumeMounts = append(c.volumeMounts, corev1.VolumeMount{
+					Name:      name,
+					MountPath: path,
+				})
+			}
+		}
+
+	}
+
 	envLiterals := metadata.GetAnnotationsWithPrefix(annotations, metadata.SidecarEnvLiteralPrefixAnnotation)
 	for name, value := range envLiterals {
 		c.env = append(c.env, corev1.EnvVar{
@@ -240,12 +268,10 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 		},
 		Env:     c.env,
 		EnvFrom: c.envFrom,
-		VolumeMounts: []corev1.VolumeMount{
-			{
-				Name:      fmt.Sprintf("%s-config", containerName),
-				MountPath: "/etc/telegraf",
-			},
-		},
+		VolumeMounts: append(c.volumeMounts, corev1.VolumeMount{
+			Name:      fmt.Sprintf("%s-config", containerName),
+			MountPath: "/etc/telegraf",
+		}),
 	}
 
 	return container
