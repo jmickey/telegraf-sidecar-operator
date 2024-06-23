@@ -172,7 +172,7 @@ var _ = Describe("Sidecar injector webhook", func() {
 						Namespace: namespace,
 					},
 					StringData: map[string]string{
-						"MY_VAR": "my_value",
+						"TEST_VAR": "test_value",
 					},
 				}
 				Expect(k8sClient.Create(testCtx, secret)).To(Succeed())
@@ -210,7 +210,7 @@ var _ = Describe("Sidecar injector webhook", func() {
 						Namespace: namespace,
 					},
 					Data: map[string]string{
-						"MY_VAR": "my_value",
+						"TEST_VAR": "test_value",
 					},
 				}
 				Expect(k8sClient.Create(testCtx, configMap)).To(Succeed())
@@ -242,9 +242,11 @@ var _ = Describe("Sidecar injector webhook", func() {
 
 			It("Should add an environment variable literal value if `env-literal-` annotation exists", func() {
 				podName := "sidecar-env-literal"
+				envVarKey := "LITERAL_VAR"
+				envVarValue := "literal_value"
 
 				pod := newTestPod(podName, map[string]string{
-					metadata.SidecarEnvLiteralPrefixAnnotation + "MY_VAR": "my_value",
+					metadata.SidecarEnvLiteralPrefixAnnotation + envVarKey: envVarValue,
 				})
 				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
 
@@ -257,9 +259,9 @@ var _ = Describe("Sidecar injector webhook", func() {
 				for _, container := range pod.Spec.Containers {
 					if container.Name == containerName {
 						for _, envVar := range container.Env {
-							if envVar.Name == "MY_VAR" {
+							if envVar.Name == envVarKey {
 								found = true
-								Expect(envVar.Value).To(Equal("my_value"))
+								Expect(envVar.Value).To(Equal(envVarValue))
 							}
 						}
 					}
@@ -302,6 +304,8 @@ var _ = Describe("Sidecar injector webhook", func() {
 			It("Should add an environment variable ConfigMapRef value if `/env-configmapkeyref-` annotation exists", func() {
 				podName := "sidecar-env-configmapkeyref"
 				configMapName := "configmap-env-configmapkeyref"
+				envVarKey := "CONFIGMAP_VAR"
+				envVarValue := "configmap_value"
 
 				configMap := &corev1.ConfigMap{
 					ObjectMeta: metav1.ObjectMeta{
@@ -309,13 +313,13 @@ var _ = Describe("Sidecar injector webhook", func() {
 						Namespace: namespace,
 					},
 					Data: map[string]string{
-						"MY_VAR": "my_value",
+						envVarKey: envVarValue,
 					},
 				}
 				Expect(k8sClient.Create(testCtx, configMap)).To(Succeed())
 
 				pod := newTestPod(podName, map[string]string{
-					metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation + "MY_VAR": configMapName + ".MY_VAR",
+					metadata.SidecarEnvConfigMapKeyRefPrefixAnnotation + envVarKey: configMapName + "." + envVarKey,
 				})
 				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
 
@@ -328,10 +332,10 @@ var _ = Describe("Sidecar injector webhook", func() {
 				for _, container := range pod.Spec.Containers {
 					if container.Name == containerName {
 						for _, envVar := range container.Env {
-							if envVar.Name == "MY_VAR" {
+							if envVar.Name == envVarKey {
 								found = true
 								Expect(envVar.ValueFrom.ConfigMapKeyRef.Name).To(Equal(configMapName))
-								Expect(envVar.ValueFrom.ConfigMapKeyRef.Key).To(Equal("MY_VAR"))
+								Expect(envVar.ValueFrom.ConfigMapKeyRef.Key).To(Equal(envVarKey))
 							}
 						}
 					}
@@ -345,6 +349,8 @@ var _ = Describe("Sidecar injector webhook", func() {
 			It("Should add an environment variable ConfigMapRef value if `/env-secretkeyref-` annotation exists", func() {
 				podName := "sidecar-env-secretkeyref"
 				secretName := "secret-env-secretkeyref"
+				envVarKey := "SECRET_VAR"
+				envVarValue := "secret_value"
 
 				secret := &corev1.Secret{
 					ObjectMeta: metav1.ObjectMeta{
@@ -352,13 +358,13 @@ var _ = Describe("Sidecar injector webhook", func() {
 						Namespace: namespace,
 					},
 					StringData: map[string]string{
-						"MY_VAR": "my_value",
+						envVarKey: envVarValue,
 					},
 				}
 				Expect(k8sClient.Create(testCtx, secret)).To(Succeed())
 
 				pod := newTestPod(podName, map[string]string{
-					metadata.SidecarEnvSecretKeyRefPrefixAnnotation + "MY_VAR": secretName + ".MY_VAR",
+					metadata.SidecarEnvSecretKeyRefPrefixAnnotation + envVarKey: secretName + "." + envVarKey,
 				})
 				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
 
@@ -371,10 +377,10 @@ var _ = Describe("Sidecar injector webhook", func() {
 				for _, container := range pod.Spec.Containers {
 					if container.Name == containerName {
 						for _, envVar := range container.Env {
-							if envVar.Name == "MY_VAR" {
+							if envVar.Name == envVarKey {
 								found = true
 								Expect(envVar.ValueFrom.SecretKeyRef.Name).To(Equal(secretName))
-								Expect(envVar.ValueFrom.SecretKeyRef.Key).To(Equal("MY_VAR"))
+								Expect(envVar.ValueFrom.SecretKeyRef.Key).To(Equal(envVarKey))
 							}
 						}
 					}
