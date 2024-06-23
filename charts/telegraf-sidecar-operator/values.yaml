@@ -17,14 +17,19 @@ securityContext:
     type: RuntimeDefault
 
 operator:
-  # Can be one of 'debug', 'info', 'error'
+  # -- Configure the logging level for the operator. Can be one of `debug`, `info`, `error`.
   logLevel: info
-  # Log encoding (one of 'json' or 'console')
+  # -- Configure the log line encoding for the operator. Can be one of `json` or `console`.
   logEncoding: console
+  # -- Specify if the `[[inputs.internal]]` plugin should be enabled by default in telegraf sidecar containers.
   enableInternalPlugin: true
   classes:
+    # -- The default Telegraf "class" to be used when configuring sidecar containers.
     default: default
+    # -- The name of the telegraf classes secret.
     secretName: telegraf-classes
+    # -- Telegraf classes data. A single class per key.
+    # @default -- a basic configuration, recommend replacing!
     data:
       default: |
         [agent]
@@ -38,11 +43,13 @@ operator:
           type = "app"
 
 serviceAccount:
-  # Annotations to add to the service account
+  # -- Annotations to add to the service account
   annotations: {}
 
 sidecar:
+  # -- The Telegraf container image to use for sidecar containers
   image: docker.io/library/telegraf:1.30-alpine
+  # -- Default resources (request/limits) for sidecar containers
   resources:
     requests:
       cpu: 10m
