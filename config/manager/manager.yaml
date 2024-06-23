@@ -62,9 +62,10 @@ spec:
             - /manager
           args:
             - --leader-elect
-            - --zap-log-level=2
+            - --zap-log-level=info
             - --zap-encoder=console
             - --zap-time-encoding=rfc3339
+            - --zap-stacktrace-level=error
           image: docker.io/jmickey/telegraf-sidecar-operator:latest
           name: telegraf-sidecar-operator
           securityContext:
@@ -100,5 +101,5 @@ spec:
       terminationGracePeriodSeconds: 30
       volumes:
         - name: telegraf-classes
-          configMap:
-            name: telegraf-classes
+          secret:
+            secretName: telegraf-classes
