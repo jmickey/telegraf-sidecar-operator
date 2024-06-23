@@ -192,6 +192,15 @@ undeploy: kustomize ## Undeploy controller from the K8s cluster specified in ~/.
 undeploy-local: kustomize ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
 	$(KUSTOMIZE) build config/local | $(KUBECTL) delete --ignore-not-found=$(ignore-not-found) -f -
 
+##@ Helm Chart
+
+HELM_DIR ?= charts/telegraf-sidecar-operator
+
+.PHONY: helm.docs
+helm.docs: ## Generate helm docs
+	@cd $(HELM_DIR)
+	docker run --rm -v $(shell pwd)/$(HELM_DIR):/helm-docs -u $(shell id -u) jnorwood/helm-docs:v1.13.1
+
 ##@ Dependencies
 
 ## Location to install dependencies to

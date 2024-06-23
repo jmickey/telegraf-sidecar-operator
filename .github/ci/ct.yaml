@@ -1,0 +1,5 @@
+charts-dir:
+  - charts/telegraf-sidecar-operator
+helm-extra-args: "--timeout=5m"
+check-version-increment: true
+target-branch: main

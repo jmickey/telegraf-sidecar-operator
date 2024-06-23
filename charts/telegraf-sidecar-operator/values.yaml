@@ -1,0 +1,71 @@
+nameOverride: ""
+fullnameOverride: ""
+
+replicaCount: 2
+
+image:
+  repository: docker.io/jmickey/telegraf-sidecar-operator
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+operator:
+  # -- Configure the logging level for the operator. Can be one of `debug`, `info`, `error`.
+  logLevel: info
+  # -- Configure the log line encoding for the operator. Can be one of `json` or `console`.
+  logEncoding: console
+  # -- Specify if the `[[inputs.internal]]` plugin should be enabled by default in telegraf sidecar containers.
+  enableInternalPlugin: true
+  classes:
+    # -- The default Telegraf "class" to be used when configuring sidecar containers.
+    default: default
+    # -- The name of the telegraf classes secret.
+    secretName: telegraf-classes
+    # -- Telegraf classes data. A single class per key.
+    # @default -- a basic configuration, recommend replacing!
+    data:
+      default: |
+        [agent]
+          hostname = "$NODENAME"
+        [[outputs.influxdb_v2]]
+          urls = ["http://influxdb.influxdb:8086"]
+        [global_tags]
+          pod_name = "$HOSTNAME"
+          nodename = "$NODENAME"
+          namespace = "$NAMESPACE"
+          type = "app"
+
+serviceAccount:
+  # -- Annotations to add to the service account
+  annotations: {}
+
+sidecar:
+  # -- The Telegraf container image to use for sidecar containers
+  image: docker.io/library/telegraf:1.30-alpine
+  # -- Default resources (request/limits) for sidecar containers
+  resources:
+    requests:
+      cpu: 10m
+      memory: 56Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
