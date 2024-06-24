@@ -28,7 +28,7 @@ spec:
   template:
     metadata:
       annotations:
-        kubectl.kubernetes.io/default-container: manager
+        kubectl.kubernetes.io/default-container: telegraf-sidecar-operator
       labels:
         app: telegraf-sidecar-operator
         name: telegraf-sidecar-operator
@@ -63,7 +63,7 @@ spec:
           args:
             - --leader-elect
             - --zap-log-level=info
-            - --zap-encoder=console
+            - --zap-encoder=json
             - --zap-time-encoding=rfc3339
             - --zap-stacktrace-level=error
           image: docker.io/jmickey/telegraf-sidecar-operator:latest
