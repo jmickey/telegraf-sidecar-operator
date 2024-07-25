@@ -32,11 +32,12 @@ import (
 )
 
 type SidecarInjector struct {
-	TelegrafImage  string
-	RequestsCPU    string
-	RequestsMemory string
-	LimitsCPU      string
-	LimitsMemory   string
+	SecretNamePrefix string
+	TelegrafImage    string
+	RequestsCPU      string
+	RequestsMemory   string
+	LimitsCPU        string
+	LimitsMemory     string
 }
 
 //+kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=ignore,groups=core,resources=pods,verbs=create;update,versions=v1,name=telegraf.mickey.dev,sideEffects=none,admissionReviewVersions=v1
@@ -74,18 +75,22 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 	// If the pod does not have a name (the API server will generate one), then randomise
 	// secret name using the name generation prefix and 5 random letters/numbers.
 	// Communicate the required secret name to the controller via a label.
-	secretName := pod.GetName()
-	if secretName == "" {
-		secretName = names.SimpleNameGenerator.GenerateName(pod.GetGenerateName())
+	secretName := s.generateSecretName(pod)
+	telegrafVol := corev1.Volume{
+		Name: "telegraf-config",
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: secretName,
+			},
+		},
 	}
-	telegrafVol := s.newTelegrafConfigVolume(secretName)
 	pod.Spec.Volumes = append(pod.Spec.Volumes, telegrafVol)
 
 	if pod.Labels == nil {
 		pod.Labels = make(map[string]string)
 	}
 	pod.Labels[metadata.SidecarInjectedLabel] = "true"
-	pod.Labels[metadata.SidecarSecretNameLabel] = telegrafVol.Secret.SecretName
+	pod.Labels[metadata.SidecarSecretNameLabel] = secretName
 
 	log.Info("successfully injected telegraf sidecar container into pod", "secretName", secretName)
 	return nil
@@ -115,13 +120,16 @@ func (s *SidecarInjector) hasTelegrafContainer(pod *corev1.Pod) bool {
 	return false
 }
 
-func (s *SidecarInjector) newTelegrafConfigVolume(nameSuffix string) corev1.Volume {
-	return corev1.Volume{
-		Name: "telegraf-config",
-		VolumeSource: corev1.VolumeSource{
-			Secret: &corev1.SecretVolumeSource{
-				SecretName: fmt.Sprintf("telegraf-config-%s", nameSuffix),
-			},
-		},
+func (s *SidecarInjector) generateSecretName(pod *corev1.Pod) string {
+	podName := pod.GetName()
+	if podName == "" {
+		podName = pod.GetGenerateName()
 	}
+
+	name := fmt.Sprintf("%s-%s-", s.SecretNamePrefix, strings.TrimSuffix(podName, "-"))
+	if len(name) > 57 {
+		name = name[:57] + "-"
+	}
+
+	return names.SimpleNameGenerator.GenerateName(name)
 }

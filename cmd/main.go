@@ -50,11 +50,12 @@ var (
 )
 
 const (
-	defaultTelegrafImage          = "docker.io/library/telegraf:1.30-alpine"
-	defaultTelegrafRequestsCPU    = "100m"
-	defaultTelegrafRequestsMemory = "100Mi"
-	defaultTelegrafLimitsCPU      = "200m"
-	defaultTelegrafLimitsMemory   = "300Mi"
+	defaultTelegrafSecretNamePrefix = "telegraf-config"
+	defaultTelegrafImage            = "docker.io/library/telegraf:1.30-alpine"
+	defaultTelegrafRequestsCPU      = "100m"
+	defaultTelegrafRequestsMemory   = "100Mi"
+	defaultTelegrafLimitsCPU        = "200m"
+	defaultTelegrafLimitsMemory     = "300Mi"
 )
 
 func init() {
@@ -73,6 +74,7 @@ func main() {
 	var telegrafClassesDirectory string
 	var telegrafDefaultClass string
 	var telegrafEnableIntervalPlugin bool
+	var telegrafSecretNamePrefix string
 	var telegrafImage string
 	var telegrafRequestsCPU string
 	var telegrafRequestsMemory string
@@ -105,6 +107,8 @@ func main() {
 		"Default CPU limits for the telegraf sidecar.")
 	flag.StringVar(&telegrafLimitsMemory, "telegraf-limits-memory", defaultTelegrafLimitsMemory,
 		"Default memory limits for the telegraf sidecar.")
+	flag.StringVar(&telegrafSecretNamePrefix, "telegraf-secret-name-prefix", defaultTelegrafSecretNamePrefix,
+		"Set the telegraf configuration secret name prefix, defaults to 'telegraf-config'")
 
 	opts := zap.Options{
 		Development: true,
@@ -189,15 +193,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	webhook := &injectorwebhook.SidecarInjector{
-		TelegrafImage:  telegrafImage,
-		RequestsCPU:    telegrafRequestsCPU,
-		RequestsMemory: telegrafRequestsMemory,
-		LimitsCPU:      telegrafLimitsCPU,
-		LimitsMemory:   telegrafLimitsMemory,
+	admission := &injectorwebhook.SidecarInjector{
+		SecretNamePrefix: telegrafSecretNamePrefix,
+		TelegrafImage:    telegrafImage,
+		RequestsCPU:      telegrafRequestsCPU,
+		RequestsMemory:   telegrafRequestsMemory,
+		LimitsCPU:        telegrafLimitsCPU,
+		LimitsMemory:     telegrafLimitsMemory,
 	}
 
-	if err = webhook.SetupSidecarInjectorWebhookWithManager(mgr); err != nil {
+	if err = admission.SetupSidecarInjectorWebhookWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create sidecar injector webhook", "component", "injectorwebhook")
 		os.Exit(1)
 	}

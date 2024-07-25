@@ -18,6 +18,7 @@ package injectorwebhook
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -72,6 +73,7 @@ var _ = Describe("Sidecar injector webhook", func() {
 				pod = &corev1.Pod{}
 				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
 				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(pod.GetLabels()[metadata.SidecarInjectedLabel]).To(Equal("true"))
 				Expect(len(pod.Spec.Containers)).To(Equal(2))
 				Expect(len(pod.Spec.Volumes)).To(Equal(1))
 
@@ -84,6 +86,59 @@ var _ = Describe("Sidecar injector webhook", func() {
 						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
 						Expect(container.Resources.Limits.Cpu().String()).To(Equal(defaultLimitsCPU))
 						Expect(container.Resources.Limits.Memory().String()).To(Equal(defaultLimitsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should truncate the secret name if the pod name is too long", func() {
+				podName := "long-pod-name-5yzuhd7fknyq24yfy9kquaj0aknw9vvu1fynqn08"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				var found bool
+				for _, volume := range pod.Spec.Volumes {
+					if volume.Name == "telegraf-config" {
+						found = true
+						Expect(len(volume.VolumeSource.Secret.SecretName)).To(Equal(63))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should correctly generate secret name using pod generate name", func() {
+				pod := &corev1.Pod{
+					ObjectMeta: metav1.ObjectMeta{
+						Namespace: namespace,
+						Labels:    nil,
+						Annotations: map[string]string{
+							metadata.TelegrafConfigClassAnnotation: "default",
+						},
+						GenerateName: "pod-generate-name-",
+					},
+					Spec: corev1.PodSpec{
+						Containers: []corev1.Container{
+							{
+								Name:  "test-container",
+								Image: "ubuntu:latest",
+							},
+						},
+					},
+				}
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				var found bool
+				for _, volume := range pod.Spec.Volumes {
+					if volume.Name == "telegraf-config" {
+						found = true
+						Expect(strings.HasPrefix(volume.VolumeSource.Secret.SecretName, "telegraf-pod-generate-name-")).To(BeTrue())
 					}
 				}
 				Expect(found).To(BeTrue())
