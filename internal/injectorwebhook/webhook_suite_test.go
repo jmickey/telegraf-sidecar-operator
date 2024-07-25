@@ -119,11 +119,12 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	injector := &SidecarInjector{
-		TelegrafImage:  defaultTelegrafImage,
-		RequestsCPU:    defaultRequestsCPU,
-		RequestsMemory: defaultRequestsMemory,
-		LimitsCPU:      defaultLimitsCPU,
-		LimitsMemory:   defaultLimitsMemory,
+		SecretNamePrefix: "telegraf",
+		TelegrafImage:    defaultTelegrafImage,
+		RequestsCPU:      defaultRequestsCPU,
+		RequestsMemory:   defaultRequestsMemory,
+		LimitsCPU:        defaultLimitsCPU,
+		LimitsMemory:     defaultLimitsMemory,
 	}
 
 	err = injector.SetupSidecarInjectorWebhookWithManager(mgr)
