@@ -23,6 +23,8 @@ operator:
   logEncoding: console
   # -- Specify if the `[[inputs.internal]]` plugin should be enabled by default in telegraf sidecar containers.
   enableInternalPlugin: true
+  # -- Set the telegraf configuration secret name prefix, defaults to 'telegraf-config'.
+  secretNamePrefix: "telegraf-config"
   classes:
     # -- The default Telegraf "class" to be used when configuring sidecar containers.
     default: default
