@@ -17,7 +17,7 @@ To install the chart with the release name `{{ template "chart.name" . }}`:
 
 ```bash
 helm repo add {{ $repoName }} {{ $chartRepo }}
-helm install telegraf-sidecar-operator {{ $repoName }}/{{ template "chart.name" }}
+helm install telegraf-sidecar-operator {{ $repoName }}/{{ template "chart.name" . }}
 ```
 
 ## Uninstalling the Chart

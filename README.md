@@ -45,7 +45,7 @@ To install the most recent version of the operator via Helm:
 
 ```shell
 helm repo add tso https://telegraf-sidecar-operator.mickey.dev
-helm repo update telegraf-sidecar-operator
+helm repo update tso
 helm install telegraf-sidecar-operator tso/telegraf-sidecar-operator
 ```
 
