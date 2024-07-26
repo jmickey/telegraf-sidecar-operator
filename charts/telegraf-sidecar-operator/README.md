@@ -18,7 +18,7 @@ To install the chart with the release name `telegraf-sidecar-operator`:
 
 ```bash
 helm repo add tso https://telegraf-sidecar-operator.mickey.dev
-helm install telegraf-sidecar-operator tso/<no value>
+helm install telegraf-sidecar-operator tso/telegraf-sidecar-operator
 ```
 
 ## Uninstalling the Chart
