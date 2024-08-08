@@ -4,7 +4,7 @@ go 1.22.4
 
 require (
 	github.com/BurntSushi/toml v1.4.0
-	github.com/go-logr/logr v1.4.1
+	github.com/go-logr/logr v1.4.2
 	github.com/influxdata/toml v0.0.0-20180607005434-2a2e3012f7cf
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
