@@ -43,6 +43,9 @@ operator:
           nodename = "$NODENAME"
           namespace = "$NAMESPACE"
           type = "app"
+  mutatingWebhook:
+    # -- Configure the namespace selection to call the webhook
+    namespaceSelector: {}
 
 serviceAccount:
   # -- Annotations to add to the service account

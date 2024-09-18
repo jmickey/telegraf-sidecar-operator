@@ -36,12 +36,10 @@ webhooks:
       caBundle: {{ $ca.Cert | b64enc }}
     failurePolicy: Ignore
     name: telegraf.mickey.dev
+    {{- with .Values.operator.mutatingWebhook.namespaceSelector }}
     namespaceSelector:
-      matchExpressions:
-        - key: kubernetes.io/metadata.name
-          operator: NotIn
-          values:
-            - {{ .Release.Namespace }}
+      {{- toYaml . | nindent 6 }}
+    {{- end }}
     rules:
       - apiGroups:
           - ""
