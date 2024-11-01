@@ -80,7 +80,7 @@ jobs:
           outputs: type=image,name=target,annotation-index.org.opencontainers.image.description=${{ fromJSON(steps.docker-metadata.outputs.json).labels['org.opencontainers.image.description'] }}
 
       - name: Setup Cosign
-        uses: sigstore/cosign-installer@4959ce089c160fddf62f7b42464195ba1a56d382 # v3.6.0
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Check Cosign install!
         run: cosign version
