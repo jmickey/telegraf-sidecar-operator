@@ -40,6 +40,7 @@ The command removes all the Kubernetes components associated with the chart and 
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"docker.io/jmickey/telegraf-sidecar-operator"` |  |
 | imagePullSecrets | list | `[]` |  |
+| mutatingWebhook.namespaceSelector | object | `{}` | Configure the namespace selection to call the webhook |
 | nameOverride | string | `""` |  |
 | nodeSelector | object | `{}` |  |
 | operator.classes.data | object | a basic configuration, recommend replacing! | Telegraf classes data. A single class per key. |
@@ -48,7 +49,6 @@ The command removes all the Kubernetes components associated with the chart and 
 | operator.enableInternalPlugin | bool | `true` | Specify if the `[[inputs.internal]]` plugin should be enabled by default in telegraf sidecar containers. |
 | operator.logEncoding | string | `"console"` | Configure the log line encoding for the operator. Can be one of `json` or `console`. |
 | operator.logLevel | string | `"info"` | Configure the logging level for the operator. Can be one of `debug`, `info`, `error`. |
-| operator.mutatingWebhook.namespaceSelector | object | `{}` | Configure the namespace selection to call the webhook |
 | operator.secretNamePrefix | string | `"telegraf-config"` | Set the telegraf configuration secret name prefix, defaults to 'telegraf-config'. |
 | podAnnotations | object | `{}` |  |
 | podLabels | object | `{}` |  |
