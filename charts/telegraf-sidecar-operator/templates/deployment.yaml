@@ -51,12 +51,15 @@ spec:
             {{- if .Values.operator.enableInternalPlugin }}
             - --telegraf-enable-internal-plugin
             {{- end }}
+            - "--telegraf-secret-name-prefix={{ .Values.operator.secretNamePrefix }}"
             - "--telegraf-image={{ .Values.sidecar.image }}"
             - "--telegraf-requests-cpu={{ .Values.sidecar.resources.requests.cpu }}"
             - "--telegraf-requests-memory={{ .Values.sidecar.resources.requests.memory }}"
             - "--telegraf-limits-cpu={{ .Values.sidecar.resources.limits.cpu }}"
             - "--telegraf-limits-memory={{ .Values.sidecar.resources.limits.memory }}"
-            - "--telegraf-secret-name-prefix={{ .Values.operator.secretNamePrefix }}"
+            {{- if .Values.sidecar.enableNativeSidecars }}
+            - "--enable-native-sidecars"
+            {{- end }}
           ports:
             - name: http
               containerPort: 9443
