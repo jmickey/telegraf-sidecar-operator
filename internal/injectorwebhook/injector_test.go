@@ -93,6 +93,42 @@ var _ = Describe("Sidecar injector webhook", func() {
 				cleanUpPod(pod.GetName())
 			})
 
+			It("Should inject telegraf as init container and config volume with default settings when EnableNativeSidecars is true", func() {
+				oldVal := injector.EnableNativeSidecars
+				injector.EnableNativeSidecars = true
+				podName := "sidecar-defaults"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(pod.GetLabels()[metadata.SidecarInjectedLabel]).To(Equal("true"))
+				Expect(len(pod.Spec.InitContainers)).To(Equal(1))
+				Expect(len(pod.Spec.Volumes)).To(Equal(1))
+
+				var found bool
+				for _, container := range pod.Spec.InitContainers {
+					if container.Name == containerName {
+						found = true
+						Expect(container.Image).To(Equal(defaultTelegrafImage))
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+						Expect(container.Resources.Limits.Cpu().String()).To(Equal(defaultLimitsCPU))
+						Expect(container.Resources.Limits.Memory().String()).To(Equal(defaultLimitsMemory))
+						expectedPolicy := corev1.ContainerRestartPolicyAlways
+						Expect(container.RestartPolicy).To(Equal(&expectedPolicy))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+				injector.EnableNativeSidecars = oldVal
+			})
+
 			It("Should truncate the secret name if the pod name is too long", func() {
 				podName := "long-pod-name-5yzuhd7fknyq24yfy9kquaj0aknw9vvu1fynqn08"
 

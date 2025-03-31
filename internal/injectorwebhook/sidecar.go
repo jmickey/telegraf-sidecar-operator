@@ -52,7 +52,7 @@ func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string)
 	var err error
 	c := &containerConfig{
 		image: s.TelegrafImage,
-		log:   logf.FromContext(ctx, "logInstance", "injectorwebhook.sidecar", "pod", podName),
+		log:   logf.FromContext(ctx, "pod", podName).WithName("sidecar"),
 	}
 
 	// Setup default environment variables for the sidecar

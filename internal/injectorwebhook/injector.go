@@ -32,17 +32,18 @@ import (
 )
 
 type SidecarInjector struct {
-	SecretNamePrefix string
-	TelegrafImage    string
-	RequestsCPU      string
-	RequestsMemory   string
-	LimitsCPU        string
-	LimitsMemory     string
+	SecretNamePrefix     string
+	TelegrafImage        string
+	RequestsCPU          string
+	RequestsMemory       string
+	LimitsCPU            string
+	LimitsMemory         string
+	EnableNativeSidecars bool
 }
 
 //+kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=ignore,groups=core,resources=pods,verbs=create;update,versions=v1,name=telegraf.mickey.dev,sideEffects=none,admissionReviewVersions=v1
 
-func (s *SidecarInjector) SetupSidecarInjectorWebhookWithManager(mgr manager.Manager) error {
+func (s *SidecarInjector) SetupWithManager(mgr manager.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&corev1.Pod{}).
 		WithDefaulter(s).
@@ -50,8 +51,7 @@ func (s *SidecarInjector) SetupSidecarInjectorWebhookWithManager(mgr manager.Man
 }
 
 func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error {
-	log := logf.FromContext(ctx,
-		"logInstance", "injectorwebhook.injector", "func", "Default")
+	log := logf.FromContext(ctx).WithName("webhook.injector")
 
 	pod, ok := obj.(*corev1.Pod)
 	if !ok {
@@ -70,7 +70,14 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 		return err
 	}
 	containerConfig.applyAnnotationOverrides(pod.GetAnnotations())
-	pod.Spec.Containers = append(pod.Spec.Containers, containerConfig.buildContainerSpec())
+	container := containerConfig.buildContainerSpec()
+	if s.EnableNativeSidecars {
+		policy := corev1.ContainerRestartPolicyAlways
+		container.RestartPolicy = &policy
+		pod.Spec.InitContainers = append(pod.Spec.InitContainers, container)
+	} else {
+		pod.Spec.Containers = append(pod.Spec.Containers, container)
+	}
 
 	// If the pod does not have a name (the API server will generate one), then randomise
 	// secret name using the name generation prefix and 5 random letters/numbers.
