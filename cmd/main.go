@@ -70,6 +70,7 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var enableNativeSidecars bool
 
 	var telegrafClassesDirectory string
 	var telegrafDefaultClass string
@@ -90,6 +91,8 @@ func main() {
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers.")
+	flag.BoolVar(&enableNativeSidecars, "enable-native-sidecars", false,
+		"If set, kubernetes v1.28 native sidecars will be enabled.")
 	flag.StringVar(&telegrafClassesDirectory, "telegraf-classes-directory", "/etc/config/classes",
 		"Path to the directory containing telegraf class files.")
 	flag.StringVar(&telegrafDefaultClass, "telegraf-default-class", "default",
@@ -202,7 +205,7 @@ func main() {
 		LimitsMemory:     telegrafLimitsMemory,
 	}
 
-	if err = admission.SetupSidecarInjectorWebhookWithManager(mgr); err != nil {
+	if err = admission.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create sidecar injector webhook", "component", "injectorwebhook")
 		os.Exit(1)
 	}
@@ -217,7 +220,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	setupLog.Info("starting manager",
+	setupLog.Info("starting Telegraf Sidecar Operator",
 		"manager-version", version.Version, "git-commit", version.GitCommit, "go-version", goruntime.Version())
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")

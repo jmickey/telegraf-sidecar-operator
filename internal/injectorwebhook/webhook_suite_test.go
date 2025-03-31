@@ -48,6 +48,7 @@ var k8sClient client.Client
 var testEnv *envtest.Environment
 var ctx context.Context
 var cancel context.CancelFunc
+var injector *SidecarInjector
 
 var (
 	defaultTelegrafImage  = "telegraf:1.30-alpine"
@@ -79,7 +80,7 @@ var _ = BeforeSuite(func() {
 		// Note that you must have the required binaries setup under the bin directory to perform
 		// the tests directly. When we run make test it will be setup and used automatically.
 		BinaryAssetsDirectory: filepath.Join("..", "..", "bin", "k8s",
-			fmt.Sprintf("1.29.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
+			fmt.Sprintf("1.30.0-%s-%s", runtime.GOOS, runtime.GOARCH)),
 
 		WebhookInstallOptions: envtest.WebhookInstallOptions{
 			Paths: []string{filepath.Join("..", "..", "config", "webhook", "manifests.yaml")},
@@ -118,16 +119,17 @@ var _ = BeforeSuite(func() {
 	})
 	Expect(err).NotTo(HaveOccurred())
 
-	injector := &SidecarInjector{
-		SecretNamePrefix: "telegraf",
-		TelegrafImage:    defaultTelegrafImage,
-		RequestsCPU:      defaultRequestsCPU,
-		RequestsMemory:   defaultRequestsMemory,
-		LimitsCPU:        defaultLimitsCPU,
-		LimitsMemory:     defaultLimitsMemory,
+	injector = &SidecarInjector{
+		SecretNamePrefix:     "telegraf",
+		TelegrafImage:        defaultTelegrafImage,
+		RequestsCPU:          defaultRequestsCPU,
+		RequestsMemory:       defaultRequestsMemory,
+		LimitsCPU:            defaultLimitsCPU,
+		LimitsMemory:         defaultLimitsMemory,
+		EnableNativeSidecars: false,
 	}
 
-	err = injector.SetupSidecarInjectorWebhookWithManager(mgr)
+	err = injector.SetupWithManager(mgr)
 	Expect(err).NotTo(HaveOccurred())
 
 	//+kubebuilder:scaffold:webhook
