@@ -1,3 +1,6 @@
+# -- Common labels to be added to all resources.
+commonLabels: {}
+
 nameOverride: ""
 fullnameOverride: ""
 
@@ -49,6 +52,9 @@ serviceAccount:
   annotations: {}
 
 sidecar:
+  # -- Enable the use of native sidecar containers introduced in Kubernetes 1.28+
+  # https://kubernetes.io/blog/2023/08/25/native-sidecar-containers/
+  enableNativeSidecars: false
   # -- The Telegraf container image to use for sidecar containers
   image: docker.io/library/telegraf:1.30-alpine
   # -- Default resources (request/limits) for sidecar containers
