@@ -1,12 +1,11 @@
 module github.com/jmickey/telegraf-sidecar-operator
 
 go 1.24.1
-
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/go-logr/logr v1.4.2
 	github.com/influxdata/toml v0.0.0-20180607005434-2a2e3012f7cf
-	github.com/onsi/ginkgo/v2 v2.23.0
+	github.com/onsi/ginkgo/v2 v2.23.3
 	github.com/onsi/gomega v1.36.2
 	k8s.io/api v0.32.3
 	k8s.io/apimachinery v0.32.3
