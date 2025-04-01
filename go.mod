@@ -1,7 +1,6 @@
 module github.com/jmickey/telegraf-sidecar-operator
 
 go 1.24.1
-
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/go-logr/logr v1.4.2
@@ -12,7 +11,7 @@ require (
 	k8s.io/apimachinery v0.32.3
 	k8s.io/apiserver v0.32.3
 	k8s.io/client-go v0.32.3
-	sigs.k8s.io/controller-runtime v0.20.3
+	sigs.k8s.io/controller-runtime v0.20.4
 )
 
 require (
