@@ -197,12 +197,13 @@ func main() {
 	}
 
 	admission := &injectorwebhook.SidecarInjector{
-		SecretNamePrefix: telegrafSecretNamePrefix,
-		TelegrafImage:    telegrafImage,
-		RequestsCPU:      telegrafRequestsCPU,
-		RequestsMemory:   telegrafRequestsMemory,
-		LimitsCPU:        telegrafLimitsCPU,
-		LimitsMemory:     telegrafLimitsMemory,
+		SecretNamePrefix:     telegrafSecretNamePrefix,
+		TelegrafImage:        telegrafImage,
+		RequestsCPU:          telegrafRequestsCPU,
+		RequestsMemory:       telegrafRequestsMemory,
+		LimitsCPU:            telegrafLimitsCPU,
+		LimitsMemory:         telegrafLimitsMemory,
+		EnableNativeSidecars: enableNativeSidecars,
 	}
 
 	if err = admission.SetupWithManager(mgr); err != nil {
