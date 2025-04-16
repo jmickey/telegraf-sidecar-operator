@@ -118,9 +118,17 @@ func (s *SidecarInjector) shouldInjectContainer(pod *corev1.Pod) bool {
 }
 
 func (s *SidecarInjector) hasTelegrafContainer(pod *corev1.Pod) bool {
-	for _, container := range pod.Spec.Containers {
-		if strings.Contains(container.Name, "telegraf") {
-			return true
+	if s.EnableNativeSidecars {
+		for _, container := range pod.Spec.InitContainers {
+			if strings.Contains(container.Name, "telegraf") {
+				return true
+			}
+		}
+	} else {
+		for _, container := range pod.Spec.Containers {
+			if strings.Contains(container.Name, "telegraf") {
+				return true
+			}
 		}
 	}
 
