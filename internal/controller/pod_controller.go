@@ -35,7 +35,6 @@ import (
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
-	k8s "github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
 // PodReconciler reconciles a Pod object
@@ -172,7 +171,7 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 		return ctrl.Result{}, fmt.Errorf("failed to set owner reference for secret: %w", err)
 	}
 
-	if err := r.Client.Create(ctx, secret); err != nil {
+	if err := r.Create(ctx, secret); err != nil {
 		if apierrors.IsAlreadyExists(err) {
 			log.Info("telegraf-config secret for pod already exists", "secret", secret.GetName())
 			return ctrl.Result{}, nil
@@ -192,7 +191,7 @@ func (r *PodReconciler) reconcile(ctx context.Context, obj *corev1.Pod) (ctrl.Re
 
 func (r *PodReconciler) shouldAttemptReconcilation(pod *corev1.Pod) bool {
 	for key := range pod.GetLabels() {
-		if key == k8s.SidecarInjectedLabel {
+		if key == metadata.SidecarInjectedLabel {
 			return true
 		}
 	}

@@ -1,35 +1,14 @@
+version: "2"
 run:
   allow-parallel-runners: true
-
-issues:
-  # don't skip warning about doc comments
-  # don't exclude the default set of lint
-  exclude-use-default: false
-  # restore some of the defaults
-  # (fill in the rest as needed)
-  exclude-rules:
-    - path: "internal/*"
-      linters:
-        - dupl
-        - lll
-    - linters:
-        - lll
-      source: "^//[+]kubebuilder"
-linters-settings:
-  govet:
-    enable:
-      - fieldalignment
 linters:
-  disable-all: true
+  default: none
   enable:
-    - dupl
     - copyloopvar
+    - dupl
     - errcheck
     - goconst
     - gocyclo
-    - gofmt
-    - goimports
-    - gosimple
     - govet
     - ineffassign
     - lll
@@ -37,7 +16,24 @@ linters:
     - nakedret
     - prealloc
     - staticcheck
-    - typecheck
     - unconvert
     - unparam
     - unused
+  settings:
+    govet:
+      enable:
+        - fieldalignment
+  exclusions:
+    warn-unused: true
+    generated: lax
+    rules:
+      - linters:
+          - dupl
+          - lll
+        path: internal/*
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
