@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	goruntime "runtime"
+	"strings"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -81,6 +82,7 @@ func main() {
 	var telegrafRequestsMemory string
 	var telegrafLimitsCPU string
 	var telegrafLimitsMemory string
+	var telegrafWatchConfig string
 
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -112,6 +114,8 @@ func main() {
 		"Default memory limits for the telegraf sidecar.")
 	flag.StringVar(&telegrafSecretNamePrefix, "telegraf-secret-name-prefix", defaultTelegrafSecretNamePrefix,
 		"Set the telegraf configuration secret name prefix, defaults to 'telegraf-config'")
+	flag.StringVar(&telegrafWatchConfig, "telegraf-watch-config", "",
+		"Enable telegraf --watch-config flag. Valid values: 'inotify', 'poll'. Default: disabled")
 
 	opts := zap.Options{
 		Development: true,
@@ -144,6 +148,11 @@ func main() {
 		telegrafLimitsMemory,
 	}); err != nil {
 		setupLog.Error(err, "failed to validate telegraf resource flag values")
+		os.Exit(1)
+	}
+
+	if err := validateWatchConfig(telegrafWatchConfig); err != nil {
+		setupLog.Error(err, "failed to validate telegraf watch-config flag value")
 		os.Exit(1)
 	}
 
@@ -204,6 +213,7 @@ func main() {
 		LimitsCPU:            telegrafLimitsCPU,
 		LimitsMemory:         telegrafLimitsMemory,
 		EnableNativeSidecars: enableNativeSidecars,
+		WatchConfig:          telegrafWatchConfig,
 	}
 
 	if err = admission.SetupWithManager(mgr); err != nil {
@@ -240,4 +250,22 @@ func validateRequestsAndLimits(resources []string) error {
 	}
 
 	return nil
+}
+
+func validateWatchConfig(watchConfig string) error {
+	if watchConfig == "" {
+		return nil // empty is valid (disabled)
+	}
+
+	// Trim whitespace and convert to lowercase for case-insensitive comparison
+	watchConfig = strings.ToLower(strings.TrimSpace(watchConfig))
+
+	validValues := []string{"inotify", "poll"}
+	for _, valid := range validValues {
+		if watchConfig == valid {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("invalid watch-config value '%s', valid values are: %v", watchConfig, validValues)
 }

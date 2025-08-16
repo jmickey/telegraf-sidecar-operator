@@ -46,13 +46,15 @@ type containerConfig struct {
 	env            []corev1.EnvVar
 	envFrom        []corev1.EnvFromSource
 	volumeMounts   []corev1.VolumeMount
+	watchConfig    string
 }
 
 func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string) (*containerConfig, error) {
 	var err error
 	c := &containerConfig{
-		image: s.TelegrafImage,
-		log:   logf.FromContext(ctx, "pod", podName).WithName("sidecar"),
+		image:       s.TelegrafImage,
+		log:         logf.FromContext(ctx, "pod", podName).WithName("sidecar"),
+		watchConfig: s.WatchConfig,
 	}
 
 	// Setup default environment variables for the sidecar
@@ -247,14 +249,22 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 }
 
 func (c *containerConfig) buildContainerSpec() corev1.Container {
+	// Build telegraf command with optional --watch-config flag
+	cmd := []string{
+		"telegraf",
+		"--config",
+		"/etc/telegraf/telegraf.conf",
+	}
+
+	// Add --watch-config flag if configured
+	if c.watchConfig != "" {
+		cmd = append(cmd, "--watch-config", c.watchConfig)
+	}
+
 	container := corev1.Container{
-		Name:  containerName,
-		Image: c.image,
-		Command: []string{
-			"telegraf",
-			"--config",
-			"/etc/telegraf/telegraf.conf",
-		},
+		Name:    containerName,
+		Image:   c.image,
+		Command: cmd,
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    c.requestsCPU,
