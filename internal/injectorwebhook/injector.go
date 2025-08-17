@@ -34,11 +34,11 @@ import (
 type SidecarInjector struct {
 	SecretNamePrefix     string
 	TelegrafImage        string
+	WatchConfig          string
 	RequestsCPU          string
 	RequestsMemory       string
 	LimitsCPU            string
 	LimitsMemory         string
-	WatchConfig          string
 	EnableNativeSidecars bool
 }
 

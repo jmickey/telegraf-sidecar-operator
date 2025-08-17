@@ -611,6 +611,95 @@ var _ = Describe("Sidecar injector webhook", func() {
 				cleanUpPod(pod.GetName())
 				injector.WatchConfig = oldVal
 			})
+
+			It("Should enable debug logging when debug annotation is set to true", func() {
+				podName := "debug-enabled"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation:    "default",
+					metadata.TelegrafConfigDebugLogAnnotation: "true",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						// Command should include --debug flag
+						Expect(container.Command).To(ContainElement("--debug"))
+						// Verify the command structure
+						expectedCommand := []string{"telegraf", "--config", "/etc/telegraf/telegraf.conf", "--debug"}
+						Expect(container.Command).To(Equal(expectedCommand))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should not enable debug logging when debug annotation is not set", func() {
+				podName := "debug-not-set"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						// Command should not include --debug flag
+						Expect(container.Command).NotTo(ContainElement("--debug"))
+						// Verify the command structure
+						expectedCommand := []string{"telegraf", "--config", "/etc/telegraf/telegraf.conf"}
+						Expect(container.Command).To(Equal(expectedCommand))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should not enable debug logging when debug annotation is set to false", func() {
+				podName := "debug-false"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation:    "default",
+					metadata.TelegrafConfigDebugLogAnnotation: "false",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						// Command should not include --debug flag
+						Expect(container.Command).ToNot(ContainElement("--debug"))
+						// Verify the command structure
+						expectedCommand := []string{"telegraf", "--config", "/etc/telegraf/telegraf.conf"}
+						Expect(container.Command).To(Equal(expectedCommand))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
 		})
 	})
 })

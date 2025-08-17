@@ -37,16 +37,18 @@ const (
 // TODO(@jmickey): find a better way of surfacing
 // non-fatal errors than embedding a logger here.
 type containerConfig struct {
+	image          string
+	debug          bool
+	watchConfig    string
 	requestsCPU    resource.Quantity
 	requestsMemory resource.Quantity
 	limitsCPU      resource.Quantity
 	limitsMemory   resource.Quantity
-	log            logr.Logger
-	image          string
-	watchConfig    string
 	env            []corev1.EnvVar
 	envFrom        []corev1.EnvFromSource
 	volumeMounts   []corev1.VolumeMount
+
+	log logr.Logger
 }
 
 func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string) (*containerConfig, error) {
@@ -246,25 +248,32 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 			c.log.Info("failed to parse configmapref for %s, invalid value: %s", name, value)
 		}
 	}
+
+	if debugValue, ok := annotations[metadata.TelegrafConfigDebugLogAnnotation]; ok {
+		if debugValue == "true" {
+			c.debug = true
+		}
+	}
 }
 
 func (c *containerConfig) buildContainerSpec() corev1.Container {
-	// Build telegraf command with optional --watch-config flag
-	cmd := []string{
+	// Build command args - add debug and watch-config flags if enabled
+	command := []string{
 		"telegraf",
 		"--config",
 		"/etc/telegraf/telegraf.conf",
 	}
-
-	// Add --watch-config flag if configured
+	if c.debug {
+		command = append(command, "--debug")
+	}
 	if c.watchConfig != "" {
-		cmd = append(cmd, "--watch-config", c.watchConfig)
+		command = append(command, "--watch-config", c.watchConfig)
 	}
 
 	container := corev1.Container{
 		Name:    containerName,
 		Image:   c.image,
-		Command: cmd,
+		Command: command,
 		Resources: corev1.ResourceRequirements{
 			Requests: corev1.ResourceList{
 				corev1.ResourceCPU:    c.requestsCPU,
