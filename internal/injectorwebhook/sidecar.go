@@ -46,7 +46,7 @@ type containerConfig struct {
 	volumeMounts   []corev1.VolumeMount
 }
 
-func newContainerConfig(s *SidecarInjector, podName string) (*containerConfig, error) {
+func newContainerConfig(s *SidecarInjector) (*containerConfig, error) {
 	var err error
 	c := &containerConfig{
 		image:       s.TelegrafImage,
@@ -98,7 +98,7 @@ func newContainerConfig(s *SidecarInjector, podName string) (*containerConfig, e
 }
 
 func (c *containerConfig) applyAnnotationOverrides(ctx context.Context, annotations map[string]string) {
-	log := logf.FromContext(ctx).WithName("sidecar")
+	log := logf.FromContext(ctx).WithName("webhook.sidecar")
 
 	if override, ok := annotations[metadata.SidecarCustomImageAnnotation]; ok {
 		c.image = override
