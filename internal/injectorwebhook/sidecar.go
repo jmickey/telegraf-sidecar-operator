@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
@@ -34,8 +33,6 @@ const (
 	containerName = "telegraf"
 )
 
-// TODO(@jmickey): find a better way of surfacing
-// non-fatal errors than embedding a logger here.
 type containerConfig struct {
 	image          string
 	debug          bool
@@ -47,15 +44,12 @@ type containerConfig struct {
 	env            []corev1.EnvVar
 	envFrom        []corev1.EnvFromSource
 	volumeMounts   []corev1.VolumeMount
-
-	log logr.Logger
 }
 
-func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string) (*containerConfig, error) {
+func newContainerConfig(s *SidecarInjector) (*containerConfig, error) {
 	var err error
 	c := &containerConfig{
 		image:       s.TelegrafImage,
-		log:         logf.FromContext(ctx, "pod", podName).WithName("sidecar"),
 		watchConfig: s.WatchConfig,
 	}
 
@@ -103,7 +97,9 @@ func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string)
 	return c, nil
 }
 
-func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string) {
+func (c *containerConfig) applyAnnotationOverrides(ctx context.Context, annotations map[string]string) {
+	log := logf.FromContext(ctx).WithName("webhook.sidecar")
+
 	if override, ok := annotations[metadata.SidecarCustomImageAnnotation]; ok {
 		c.image = override
 	}
@@ -111,7 +107,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 	if override, ok := annotations[metadata.SidecarRequestsCPUAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
-			c.log.Error(err,
+			log.Error(err,
 				"failed to parse override resource value for requests.CPU, using default value",
 				"invalidValue", override)
 		} else {
@@ -122,7 +118,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 	if override, ok := annotations[metadata.SidecarRequestsMemoryAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
-			c.log.Error(err,
+			log.Error(err,
 				"failed to parse override resource value for requests.memory, using default value",
 				"invalidValue", override)
 		} else {
@@ -133,7 +129,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 	if override, ok := annotations[metadata.SidecarLimitsCPUAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
-			c.log.Error(err,
+			log.Error(err,
 				"failed to parse override resource value for limits.CPU, using default value",
 				"invalidValue", override)
 		} else {
@@ -144,7 +140,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 	if override, ok := annotations[metadata.SidecarLimitsMemoryAnnotation]; ok {
 		q, err := resource.ParseQuantity(override)
 		if err != nil {
-			c.log.Error(err,
+			log.Error(err,
 				"failed to parse override resource value for limits.memory, using default value",
 				"invalidValue", override)
 		} else {
@@ -177,7 +173,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 	if volumeMountsStr, ok := annotations[metadata.SidecarVolumeMountsAnnotation]; ok {
 		mounts := make(map[string]string)
 		if err := json.Unmarshal([]byte(volumeMountsStr), &mounts); err != nil {
-			c.log.Error(err, "failed to unmarshal volumeMounts")
+			log.Error(err, "failed to unmarshal volumeMounts")
 		} else {
 			for name, path := range mounts {
 				c.volumeMounts = append(c.volumeMounts, corev1.VolumeMount{
@@ -225,7 +221,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 				},
 			})
 		} else {
-			c.log.Info("failed to parse secretkeyref for %s, invalid value: %s", name, value)
+			log.Info("failed to parse secretkeyref for %s, invalid value: %s", name, value)
 		}
 	}
 
@@ -245,7 +241,7 @@ func (c *containerConfig) applyAnnotationOverrides(annotations map[string]string
 				},
 			})
 		} else {
-			c.log.Info("failed to parse configmapref for %s, invalid value: %s", name, value)
+			log.Info("failed to parse configmapref for %s, invalid value: %s", name, value)
 		}
 	}
 

@@ -58,19 +58,25 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 	if !ok {
 		return fmt.Errorf("expected runtime.Object to be a Pod, got %T", obj)
 	}
-	log = log.WithValues("generateName", pod.GetGenerateName())
+
+	podIdentifier := pod.GetName()
+	if podIdentifier == "" {
+		podIdentifier = pod.GetGenerateName()
+	}
+
+	log = log.WithValues("podIdentifier", podIdentifier)
 
 	if !s.shouldInjectContainer(pod) {
 		log.V(2).Info("skipping pod, telegraf sidecar injector should not handle it")
 		return nil
 	}
 
-	containerConfig, err := newContainerConfig(ctx, s, pod.GetName())
+	containerConfig, err := newContainerConfig(s)
 	if err != nil {
 		log.Error(err, "failed to initialize container configuration")
 		return err
 	}
-	containerConfig.applyAnnotationOverrides(pod.GetAnnotations())
+	containerConfig.applyAnnotationOverrides(logf.IntoContext(ctx, log), pod.GetAnnotations())
 	container := containerConfig.buildContainerSpec()
 	if s.EnableNativeSidecars {
 		policy := corev1.ContainerRestartPolicyAlways
@@ -83,7 +89,7 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 	// If the pod does not have a name (the API server will generate one), then randomise
 	// secret name using the name generation prefix and 5 random letters/numbers.
 	// Communicate the required secret name to the controller via a label.
-	secretName := s.generateSecretName(pod)
+	secretName := s.generateSecretName(podIdentifier)
 	telegrafVol := corev1.Volume{
 		Name: "telegraf-config",
 		VolumeSource: corev1.VolumeSource{
@@ -136,13 +142,8 @@ func (s *SidecarInjector) hasTelegrafContainer(pod *corev1.Pod) bool {
 	return false
 }
 
-func (s *SidecarInjector) generateSecretName(pod *corev1.Pod) string {
-	podName := pod.GetName()
-	if podName == "" {
-		podName = pod.GetGenerateName()
-	}
-
-	name := fmt.Sprintf("%s-%s-", s.SecretNamePrefix, strings.TrimSuffix(podName, "-"))
+func (s *SidecarInjector) generateSecretName(podIdentifier string) string {
+	name := fmt.Sprintf("%s-%s-", s.SecretNamePrefix, strings.TrimSuffix(podIdentifier, "-"))
 	if len(name) > 57 {
 		name = name[:57] + "-"
 	}
