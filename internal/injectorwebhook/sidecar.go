@@ -43,10 +43,10 @@ type containerConfig struct {
 	limitsMemory   resource.Quantity
 	log            logr.Logger
 	image          string
+	watchConfig    string
 	env            []corev1.EnvVar
 	envFrom        []corev1.EnvFromSource
 	volumeMounts   []corev1.VolumeMount
-	watchConfig    string
 }
 
 func newContainerConfig(ctx context.Context, s *SidecarInjector, podName string) (*containerConfig, error) {

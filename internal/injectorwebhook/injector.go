@@ -38,8 +38,8 @@ type SidecarInjector struct {
 	RequestsMemory       string
 	LimitsCPU            string
 	LimitsMemory         string
-	EnableNativeSidecars bool
 	WatchConfig          string
+	EnableNativeSidecars bool
 }
 
 //+kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=ignore,groups=core,resources=pods,verbs=create;update,versions=v1,name=telegraf.mickey.dev,sideEffects=none,admissionReviewVersions=v1
