@@ -19,10 +19,6 @@ linters:
     - unconvert
     - unparam
     - unused
-  settings:
-    govet:
-      enable:
-        - fieldalignment
   exclusions:
     warn-unused: true
     generated: lax

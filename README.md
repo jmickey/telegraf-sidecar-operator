@@ -192,9 +192,10 @@ Pod annotations can be used to configure both the sidecar container itself, as w
 | `telegraf.influxdata.com/interval`                 | `10s`               | Can be used to configure the scraping interval. Value must be a value to Go style duration string, e.g. `10s`, `30s`, `1m`.                                                                                                                                                                                 |
 | `telegraf.influxdata.com/metric-version`           | `"1"`               | Can be used to override which metrics parsing version to use. Valid values are [ `"1"`, `"2"`].                                                                                                                                                                                                             |
 | `telegraf.influxdata.com/namepass`                 | `nil`               | Can be used to configure the namepass setting for the Prometheus input plugin. Namepass accepts an array of glob pattern strings. Only metrics whose measurement name matches a pattern in this list are emitted. Annotation value must be specified as a comma-separated string, e.g. `"metric1, metric2"` |
-| `telegraf.influxdata.com/inputs`                   | `nil`               | Can be used to configure a raw telegraf input TOML block. Can be provided as a multiline block of raw TOML configuration.                                                                                                                                                                                   |
-| `telegraf.influxdata.com/internal`                 | Configured globally | Enables the "internal" telegraf plugin if it is configured to be globally disabled by default. Any non-empty string value is accepted.                                                                                                                                                                      |
-| `telegraf.influxdata.com/global-tag-literal-<TAG>` | `nil`               | Can be used to a literal value to the `global_tags` in the telegraf configuration.                                                                                                                                                                                                                          |
+| `telegraf.influxdata.com/inputs`                   | `nil`               | Can be used to configure a raw telegraf input TOML block. Can be provided as a multiline block of raw TOML configuration.                                                                                                                                                                   |
+| `telegraf.influxdata.com/internal`                 | Configured globally | Enables the "internal" telegraf plugin if it is configured to be globally disabled by default. Any non-empty string value is accepted.                                                                                                                                                      |
+| `telegraf.influxdata.com/debug`                    | `false`             | Enables debug logging in the telegraf sidecar container. Set to `"true"` to enable verbose debug output for troubleshooting. This adds the `--debug` flag to the telegraf command.                                                                                                        |
+| `telegraf.influxdata.com/global-tag-literal-<KEY>` | `nil`               | Can be used to add a literal value to the global_tags in the telegraf configuration.                                                                                                                                                                                                        |
 
 ### Example
 
@@ -212,6 +213,7 @@ spec:
         telegraf.influxdata.com/port: "8086"
         telegraf.influxdata.com/scheme: https
         telegraf.influxdata.com/metric-version: "2"
+        telegraf.influxdata.com/debug: "true" # Enable debug logging for troubleshooting
         telegraf.influxdata.com/env-fieldref-APP: metadata.labels['app']
         telegraf.influxdata.com/global-tag-literal-app: "$APP"
       # ...

@@ -143,6 +143,11 @@ const (
 	// telegraf plugin. Any non-empty string value is accepted.
 	TelegrafConfigEnableInternalAnnotation = Prefix + "/internal"
 
+	// TelegrafConfigDebugLogAnnotation enables debug logging in telegraf.
+	// Set to "true" to enable debug logging. This sets the telegraf agent
+	// debug flag which produces verbose output for troubleshooting.
+	TelegrafConfigDebugLogAnnotation = Prefix + "/debug"
+
 	/*
 	 * Telagraf Configuration Prefix Annotations
 	 */
