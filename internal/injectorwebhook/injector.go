@@ -65,12 +65,12 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 		return nil
 	}
 
-	containerConfig, err := newContainerConfig(ctx, s, pod.GetName())
+	containerConfig, err := newContainerConfig(s, pod.GetName())
 	if err != nil {
 		log.Error(err, "failed to initialize container configuration")
 		return err
 	}
-	containerConfig.applyAnnotationOverrides(pod.GetAnnotations())
+	containerConfig.applyAnnotationOverrides(ctx, pod.GetAnnotations())
 	container := containerConfig.buildContainerSpec()
 	if s.EnableNativeSidecars {
 		policy := corev1.ContainerRestartPolicyAlways
