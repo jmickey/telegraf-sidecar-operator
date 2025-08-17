@@ -62,7 +62,7 @@ const (
 	defaultTelegrafImage            = "docker.io/library/telegraf:1.30-alpine"
 	defaultTelegrafRequestsCPU      = "100m"
 	defaultTelegrafRequestsMemory   = "100Mi"
-	defaultTelegrafLimitsCPU        = "200m"
+	defaultTelegrafLimitsCPU        = ""
 	defaultTelegrafLimitsMemory     = "300Mi"
 )
 
@@ -132,7 +132,7 @@ func main() {
 	flag.StringVar(&telegrafRequestsMemory, "telegraf-requests-memory", defaultTelegrafRequestsMemory,
 		"Default memory requests for the telegraf sidecar.")
 	flag.StringVar(&telegrafLimitsCPU, "telegraf-limits-cpu", defaultTelegrafLimitsCPU,
-		"Default CPU limits for the telegraf sidecar.")
+		"Default CPU limits for the telegraf sidecar. Set to empty string or '0' to disable CPU limits.")
 	flag.StringVar(&telegrafLimitsMemory, "telegraf-limits-memory", defaultTelegrafLimitsMemory,
 		"Default memory limits for the telegraf sidecar.")
 	flag.StringVar(&telegrafSecretNamePrefix, "telegraf-secret-name-prefix", defaultTelegrafSecretNamePrefix,

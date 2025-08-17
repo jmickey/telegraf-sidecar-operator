@@ -700,6 +700,147 @@ var _ = Describe("Sidecar injector webhook", func() {
 
 				cleanUpPod(pod.GetName())
 			})
+
+			It("Should disable CPU limits when limits-cpu annotation is set to 0", func() {
+				podName := "disable-cpu-limits-zero"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+					metadata.SidecarLimitsCPUAnnotation:    "0",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						// CPU limits should be absent when set to "0"
+						_, hasCPULimit := container.Resources.Limits[corev1.ResourceCPU]
+						Expect(hasCPULimit).To(BeFalse())
+						// Memory limits should still be present
+						_, hasMemoryLimit := container.Resources.Limits[corev1.ResourceMemory]
+						Expect(hasMemoryLimit).To(BeTrue())
+						// Requests should still be present
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should disable CPU limits when limits-cpu annotation is set to empty string", func() {
+				podName := "disable-cpu-limits-empty"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+					metadata.SidecarLimitsCPUAnnotation:    "",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						// CPU limits should be absent when set to empty string
+						_, hasCPULimit := container.Resources.Limits[corev1.ResourceCPU]
+						Expect(hasCPULimit).To(BeFalse())
+						// Memory limits should still be present
+						_, hasMemoryLimit := container.Resources.Limits[corev1.ResourceMemory]
+						Expect(hasMemoryLimit).To(BeTrue())
+						// Requests should still be present
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should allow annotation to override globally disabled CPU limits", func() {
+				// Temporarily modify the injector to have CPU limits globally disabled
+				oldLimitsCPU := injector.LimitsCPU
+				injector.LimitsCPU = "0" // Globally disable CPU limits
+				defer func() {
+					injector.LimitsCPU = oldLimitsCPU // Restore original value
+				}()
+
+				podName := "override-global-disable"
+				overrideLimitsCPU := "250m"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+					metadata.SidecarLimitsCPUAnnotation:    overrideLimitsCPU, // Override the global disable
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						// CPU limits should be present with the override value despite global disable
+						Expect(container.Resources.Limits.Cpu().String()).To(Equal(overrideLimitsCPU))
+						Expect(container.Resources.Limits.Memory().String()).To(Equal(defaultLimitsMemory))
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should allow annotation to disable CPU limits when globally enabled", func() {
+				// Use default injector settings (CPU limits globally enabled)
+				podName := "annotation-disable-global-enable"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+					metadata.SidecarLimitsCPUAnnotation:    "0", // Disable CPU limits via annotation
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						// CPU limits should be absent despite global enable due to annotation override
+						_, hasCPULimit := container.Resources.Limits[corev1.ResourceCPU]
+						Expect(hasCPULimit).To(BeFalse())
+						// Memory limits should still be present
+						_, hasMemoryLimit := container.Resources.Limits[corev1.ResourceMemory]
+						Expect(hasMemoryLimit).To(BeTrue())
+						// Requests should still be present
+						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
+						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
 		})
 	})
 })
