@@ -179,7 +179,7 @@ Pod annotations can be used to configure both the sidecar container itself, as w
 | `telegraf.influxdata.com/env-literal-<VAR>`         | `nil`                  | Can be used to add a literal value as an environment variable to the sidecar container.                                                                |
 | `telegraf.influxdata.com/env-fieldred-<VAR>`        | `nil`                  | Can be used to add a Kubernetes downstream API FieldRef as an environment variable to the sidecar container.                                           |
 | `telegraf.influxdata.com/env-secretkeyref-<VAR>`    | `nil`                  | Can be used to a Secret key value as an environment variable to the sidecar container. Must be in the format `"<secretName>.<secretKey>"`              |
-| `telegraf.influxdata.com/env-configmapkeyraf-<VAR>` | `nil`                  | Can be used to add a ConfigMap key value as an environment variable to the sidecar container. Must be in the format `"<configMapName>.<configMapKey>"` |
+| `telegraf.influxdata.com/env-configmapkeyref-<VAR>` | `nil`                  | Can be used to add a ConfigMap key value as an environment variable to the sidecar container. Must be in the format `"<configMapName>.<configMapKey>"` |
 
 ### Telegraf Configuration Annotations
 

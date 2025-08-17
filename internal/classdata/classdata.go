@@ -30,14 +30,14 @@ type Handler interface {
 	Update() error
 }
 
-type DirecroryHandler struct {
+type DirectoryHandler struct {
 	data map[string][]byte
 	path string
 	mu   sync.RWMutex
 }
 
-func NewDirectoryHandler(path string) (*DirecroryHandler, error) {
-	handler := &DirecroryHandler{
+func NewDirectoryHandler(path string) (*DirectoryHandler, error) {
+	handler := &DirectoryHandler{
 		path: path,
 		data: make(map[string][]byte),
 	}
@@ -53,7 +53,7 @@ func NewDirectoryHandler(path string) (*DirecroryHandler, error) {
 	return handler, nil
 }
 
-func (h *DirecroryHandler) GetDataForClass(name string) ([]byte, bool) {
+func (h *DirectoryHandler) GetDataForClass(name string) ([]byte, bool) {
 	h.mu.RLock()
 	data, ok := h.data[name]
 	h.mu.RUnlock()
@@ -61,7 +61,7 @@ func (h *DirecroryHandler) GetDataForClass(name string) ([]byte, bool) {
 	return data, ok
 }
 
-func (h *DirecroryHandler) Update() error {
+func (h *DirectoryHandler) Update() error {
 	// Make a copy of the current data in case the update fails
 	cp := make(map[string][]byte)
 	h.mu.RLock()
@@ -79,13 +79,13 @@ func (h *DirecroryHandler) Update() error {
 
 	if err := h.validate(); err != nil {
 		h.data = cp
-		return fmt.Errorf("validate to validate updated class data, reverting to previous: %w", err)
+		return fmt.Errorf("failed to validate updated class data, reverting to previous: %w", err)
 	}
 
 	return nil
 }
 
-func (h *DirecroryHandler) validate() error {
+func (h *DirectoryHandler) validate() error {
 	if len(h.data) == 0 {
 		return fmt.Errorf("failed to validate class data, no data could be found")
 	}
@@ -99,7 +99,7 @@ func (h *DirecroryHandler) validate() error {
 	return nil
 }
 
-func (h *DirecroryHandler) readClassData() error {
+func (h *DirectoryHandler) readClassData() error {
 	files, err := os.ReadDir(h.path)
 	if err != nil {
 		return fmt.Errorf("failed to read directory: %s, error: %w", h.path, err)

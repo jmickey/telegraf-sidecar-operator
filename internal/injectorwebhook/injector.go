@@ -116,7 +116,7 @@ func (s *SidecarInjector) shouldInjectContainer(pod *corev1.Pod) bool {
 	}
 
 	for key := range pod.GetAnnotations() {
-		if strings.Contains(key, metadata.Prefix) {
+		if strings.HasPrefix(key, metadata.Prefix) {
 			return true
 		}
 	}
