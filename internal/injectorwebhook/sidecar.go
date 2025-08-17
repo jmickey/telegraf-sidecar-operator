@@ -87,8 +87,10 @@ func newContainerConfig(s *SidecarInjector) (*containerConfig, error) {
 	if c.requestsMemory, err = resource.ParseQuantity(s.RequestsMemory); err != nil {
 		return nil, fmt.Errorf("failed to parse memory requests with value: %s, error: %w", s.RequestsMemory, err)
 	}
-	if c.limitsCPU, err = resource.ParseQuantity(s.LimitsCPU); err != nil {
-		return nil, fmt.Errorf("failed to parse CPU limits with value: %s, error: %w", s.LimitsCPU, err)
+	if s.LimitsCPU != "" && s.LimitsCPU != "0" {
+		if c.limitsCPU, err = resource.ParseQuantity(s.LimitsCPU); err != nil {
+			return nil, fmt.Errorf("failed to parse CPU limits with value: %s, error: %w", s.LimitsCPU, err)
+		}
 	}
 	if c.limitsMemory, err = resource.ParseQuantity(s.LimitsMemory); err != nil {
 		return nil, fmt.Errorf("failed to parse memory limits with value: %s, error: %w", s.LimitsMemory, err)
@@ -127,13 +129,18 @@ func (c *containerConfig) applyAnnotationOverrides(ctx context.Context, annotati
 	}
 
 	if override, ok := annotations[metadata.SidecarLimitsCPUAnnotation]; ok {
-		q, err := resource.ParseQuantity(override)
-		if err != nil {
-			log.Error(err,
-				"failed to parse override resource value for limits.CPU, using default value",
-				"invalidValue", override)
+		if override == "" || override == "0" {
+			// Empty string or "0" means no CPU limits
+			c.limitsCPU = resource.Quantity{}
 		} else {
-			c.limitsCPU = q
+			q, err := resource.ParseQuantity(override)
+			if err != nil {
+				log.Error(err,
+					"failed to parse override resource value for limits.CPU, using default value",
+					"invalidValue", override)
+			} else {
+				c.limitsCPU = q
+			}
 		}
 	}
 
@@ -266,22 +273,29 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 		command = append(command, "--watch-config", c.watchConfig)
 	}
 
-	container := corev1.Container{
-		Name:    containerName,
-		Image:   c.image,
-		Command: command,
-		Resources: corev1.ResourceRequirements{
-			Requests: corev1.ResourceList{
-				corev1.ResourceCPU:    c.requestsCPU,
-				corev1.ResourceMemory: c.requestsMemory,
-			},
-			Limits: corev1.ResourceList{
-				corev1.ResourceCPU:    c.limitsCPU,
-				corev1.ResourceMemory: c.limitsMemory,
-			},
+	// Build resource requirements
+	resourceRequirements := corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{
+			corev1.ResourceCPU:    c.requestsCPU,
+			corev1.ResourceMemory: c.requestsMemory,
 		},
-		Env:     c.env,
-		EnvFrom: c.envFrom,
+		Limits: corev1.ResourceList{
+			corev1.ResourceMemory: c.limitsMemory,
+		},
+	}
+
+	// Only add CPU limits if they are set (not empty/zero)
+	if !c.limitsCPU.IsZero() {
+		resourceRequirements.Limits[corev1.ResourceCPU] = c.limitsCPU
+	}
+
+	container := corev1.Container{
+		Name:      containerName,
+		Image:     c.image,
+		Command:   command,
+		Resources: resourceRequirements,
+		Env:       c.env,
+		EnvFrom:   c.envFrom,
 		VolumeMounts: append(c.volumeMounts, corev1.VolumeMount{
 			Name:      fmt.Sprintf("%s-config", containerName),
 			MountPath: "/etc/telegraf",
