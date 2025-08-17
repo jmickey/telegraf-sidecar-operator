@@ -511,6 +511,106 @@ var _ = Describe("Sidecar injector webhook", func() {
 
 				cleanUpPod(pod.GetName())
 			})
+
+			It("Should include --watch-config inotify when WatchConfig is set to 'inotify'", func() {
+				oldVal := injector.WatchConfig
+				injector.WatchConfig = "inotify"
+				podName := "sidecar-watch-config-inotify"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						expectedCmd := []string{
+							"telegraf",
+							"--config",
+							"/etc/telegraf/telegraf.conf",
+							"--watch-config",
+							"inotify",
+						}
+						Expect(container.Command).To(Equal(expectedCmd))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+				injector.WatchConfig = oldVal
+			})
+
+			It("Should include --watch-config poll when WatchConfig is set to 'poll'", func() {
+				oldVal := injector.WatchConfig
+				injector.WatchConfig = "poll"
+				podName := "sidecar-watch-config-poll"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						expectedCmd := []string{
+							"telegraf",
+							"--config",
+							"/etc/telegraf/telegraf.conf",
+							"--watch-config",
+							"poll",
+						}
+						Expect(container.Command).To(Equal(expectedCmd))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+				injector.WatchConfig = oldVal
+			})
+
+			It("Should not include --watch-config when WatchConfig is empty", func() {
+				oldVal := injector.WatchConfig
+				injector.WatchConfig = ""
+				podName := "sidecar-no-watch-config"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						expectedCmd := []string{
+							"telegraf",
+							"--config",
+							"/etc/telegraf/telegraf.conf",
+						}
+						Expect(container.Command).To(Equal(expectedCmd))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+				injector.WatchConfig = oldVal
+			})
 		})
 	})
 })

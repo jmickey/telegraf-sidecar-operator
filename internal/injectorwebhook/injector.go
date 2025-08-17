@@ -38,6 +38,7 @@ type SidecarInjector struct {
 	RequestsMemory       string
 	LimitsCPU            string
 	LimitsMemory         string
+	WatchConfig          string
 	EnableNativeSidecars bool
 }
 
