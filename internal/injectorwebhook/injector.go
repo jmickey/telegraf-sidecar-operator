@@ -28,18 +28,26 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/jmickey/telegraf-sidecar-operator/internal/config"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
 type SidecarInjector struct {
-	SecretNamePrefix     string
-	TelegrafImage        string
-	WatchConfig          string
-	RequestsCPU          string
-	RequestsMemory       string
-	LimitsCPU            string
-	LimitsMemory         string
-	EnableNativeSidecars bool
+	SecretNamePrefix                 string
+	TelegrafImage                    string
+	WatchConfig                      string
+	RequestsCPU                      string
+	RequestsMemory                   string
+	LimitsCPU                        string
+	LimitsMemory                     string
+	EnableNativeSidecars             bool
+	SecurityRunAsUser                *config.OptionalInt64
+	SecurityRunAsGroup               *config.OptionalInt64
+	SecurityRunAsNonRoot             *config.OptionalBool
+	SecurityReadOnlyRootFilesystem   *config.OptionalBool
+	SecurityAllowPrivilegeEscalation *config.OptionalBool
+	SecurityCapabilitiesAdd          string
+	SecurityCapabilitiesDrop         string
 }
 
 //+kubebuilder:webhook:path=/mutate--v1-pod,mutating=true,failurePolicy=ignore,groups=core,resources=pods,verbs=create;update,versions=v1,name=telegraf.mickey.dev,sideEffects=none,admissionReviewVersions=v1
