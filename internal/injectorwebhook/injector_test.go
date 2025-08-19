@@ -853,15 +853,15 @@ var _ = Describe("Sidecar injector webhook", func() {
 				oldSecurityCapabilitiesDrop := injector.SecurityCapabilitiesDrop
 
 				runAsUser := &config.OptionalInt64{}
-				runAsUser.Set("100")
+				Expect(runAsUser.Set("100")).To(Succeed())
 				runAsGroup := &config.OptionalInt64{}
-				runAsGroup.Set("101")
+				Expect(runAsGroup.Set("101")).To(Succeed())
 				runAsNonRoot := &config.OptionalBool{}
-				runAsNonRoot.Set("true")
+				Expect(runAsNonRoot.Set("true")).To(Succeed())
 				readOnlyRootFilesystem := &config.OptionalBool{}
-				readOnlyRootFilesystem.Set("true")
+				Expect(readOnlyRootFilesystem.Set("true")).To(Succeed())
 				allowPrivilegeEscalation := &config.OptionalBool{}
-				allowPrivilegeEscalation.Set("false")
+				Expect(allowPrivilegeEscalation.Set("false")).To(Succeed())
 
 				injector.SecurityRunAsUser = runAsUser
 				injector.SecurityRunAsGroup = runAsGroup
