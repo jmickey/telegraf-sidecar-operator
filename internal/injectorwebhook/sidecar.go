@@ -34,16 +34,17 @@ const (
 )
 
 type containerConfig struct {
-	image          string
-	debug          bool
-	watchConfig    string
-	requestsCPU    resource.Quantity
-	requestsMemory resource.Quantity
-	limitsCPU      resource.Quantity
-	limitsMemory   resource.Quantity
-	env            []corev1.EnvVar
-	envFrom        []corev1.EnvFromSource
-	volumeMounts   []corev1.VolumeMount
+	image           string
+	debug           bool
+	watchConfig     string
+	requestsCPU     resource.Quantity
+	requestsMemory  resource.Quantity
+	limitsCPU       resource.Quantity
+	limitsMemory    resource.Quantity
+	env             []corev1.EnvVar
+	envFrom         []corev1.EnvFromSource
+	volumeMounts    []corev1.VolumeMount
+	securityContext *corev1.SecurityContext
 }
 
 func newContainerConfig(s *SidecarInjector) (*containerConfig, error) {
@@ -95,6 +96,8 @@ func newContainerConfig(s *SidecarInjector) (*containerConfig, error) {
 	if c.limitsMemory, err = resource.ParseQuantity(s.LimitsMemory); err != nil {
 		return nil, fmt.Errorf("failed to parse memory limits with value: %s, error: %w", s.LimitsMemory, err)
 	}
+
+	c.securityContext = buildSecurityContext(s)
 
 	return c, nil
 }
@@ -290,12 +293,13 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 	}
 
 	container := corev1.Container{
-		Name:      containerName,
-		Image:     c.image,
-		Command:   command,
-		Resources: resourceRequirements,
-		Env:       c.env,
-		EnvFrom:   c.envFrom,
+		Name:            containerName,
+		Image:           c.image,
+		Command:         command,
+		Resources:       resourceRequirements,
+		Env:             c.env,
+		EnvFrom:         c.envFrom,
+		SecurityContext: c.securityContext,
 		VolumeMounts: append(c.volumeMounts, corev1.VolumeMount{
 			Name:      fmt.Sprintf("%s-config", containerName),
 			MountPath: "/etc/telegraf",
@@ -303,4 +307,46 @@ func (c *containerConfig) buildContainerSpec() corev1.Container {
 	}
 
 	return container
+}
+
+func buildSecurityContext(s *SidecarInjector) *corev1.SecurityContext {
+	if s.SecurityRunAsUser.Value() == nil &&
+		s.SecurityRunAsGroup.Value() == nil &&
+		s.SecurityRunAsNonRoot.Value() == nil &&
+		s.SecurityReadOnlyRootFilesystem.Value() == nil &&
+		s.SecurityAllowPrivilegeEscalation.Value() == nil &&
+		s.SecurityCapabilitiesAdd == "" &&
+		s.SecurityCapabilitiesDrop == "" {
+		return nil
+	}
+
+	sc := &corev1.SecurityContext{
+		RunAsUser:                s.SecurityRunAsUser.Value(),
+		RunAsGroup:               s.SecurityRunAsGroup.Value(),
+		RunAsNonRoot:             s.SecurityRunAsNonRoot.Value(),
+		ReadOnlyRootFilesystem:   s.SecurityReadOnlyRootFilesystem.Value(),
+		AllowPrivilegeEscalation: s.SecurityAllowPrivilegeEscalation.Value(),
+	}
+
+	if s.SecurityCapabilitiesAdd != "" || s.SecurityCapabilitiesDrop != "" {
+		sc.Capabilities = &corev1.Capabilities{}
+		if s.SecurityCapabilitiesAdd != "" {
+			caps := strings.Split(s.SecurityCapabilitiesAdd, ",")
+			capList := make([]corev1.Capability, len(caps))
+			for i, cap := range caps {
+				capList[i] = corev1.Capability(strings.TrimSpace(cap))
+			}
+			sc.Capabilities.Add = capList
+		}
+		if s.SecurityCapabilitiesDrop != "" {
+			caps := strings.Split(s.SecurityCapabilitiesDrop, ",")
+			capList := make([]corev1.Capability, len(caps))
+			for i, cap := range caps {
+				capList[i] = corev1.Capability(strings.TrimSpace(cap))
+			}
+			sc.Capabilities.Drop = capList
+		}
+	}
+
+	return sc
 }

@@ -38,13 +38,14 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/config"
+	ctrlCfg "sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/config"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/controller"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/injectorwebhook"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
@@ -90,6 +91,13 @@ func main() {
 	var telegrafLimitsCPU string
 	var telegrafLimitsMemory string
 	var telegrafWatchConfig string
+	var telegrafSecurityRunAsUser config.OptionalInt64
+	var telegrafSecurityRunAsGroup config.OptionalInt64
+	var telegrafSecurityRunAsNonRoot config.OptionalBool
+	var telegrafSecurityReadOnlyRootFS config.OptionalBool
+	var telegrafSecurityAllowPrivEsc config.OptionalBool
+	var telegrafSecurityCapAdd string
+	var telegrafSecurityCapDrop string
 	var disableCacheOptimizations bool
 	var leaderElectLeaseDuration time.Duration
 	var leaderElectRenewDeadline time.Duration
@@ -110,7 +118,7 @@ func main() {
 	flag.DurationVar(&leaderElectRetryPeriod, "leader-elect-retry-period", 5*time.Second,
 		"Duration the LeaderElector clients should wait between tries of actions. "+
 			"Lower values provide faster failover but increase API server load.")
-	flag.BoolVar(&leaderElectReleaseOnCancel, "leader-elect-retry-period", true,
+	flag.BoolVar(&leaderElectReleaseOnCancel, "leader-elect-release-on-cancel", true,
 		"Defines if the leader should step down voluntarily on controller manager shutdown.")
 	flag.BoolVar(&secureMetrics, "metrics-secure", false,
 		"If set the metrics endpoint is served securely")
@@ -139,6 +147,20 @@ func main() {
 		"Set the telegraf configuration secret name prefix, defaults to 'telegraf-config'")
 	flag.StringVar(&telegrafWatchConfig, "telegraf-watch-config", "",
 		"Enable telegraf --watch-config flag. Valid values: 'inotify', 'poll'. Default: disabled")
+	flag.Var(&telegrafSecurityRunAsUser, "telegraf-security-run-as-user",
+		"User ID for telegraf sidecar containers")
+	flag.Var(&telegrafSecurityRunAsGroup, "telegraf-security-run-as-group",
+		"Group ID for telegraf sidecar containers")
+	flag.Var(&telegrafSecurityRunAsNonRoot, "telegraf-security-run-as-non-root",
+		"Run telegraf sidecar as non-root user")
+	flag.Var(&telegrafSecurityReadOnlyRootFS, "telegraf-security-readonly-rootfs",
+		"Use read-only root filesystem for telegraf sidecar")
+	flag.Var(&telegrafSecurityAllowPrivEsc, "telegraf-security-allow-privilege-escalation",
+		"Allow privilege escalation for telegraf sidecar")
+	flag.StringVar(&telegrafSecurityCapAdd, "telegraf-security-capabilities-add", "",
+		"Comma-separated list of capabilities to add")
+	flag.StringVar(&telegrafSecurityCapDrop, "telegraf-security-capabilities-drop", "",
+		"Comma-separated list of capabilities to drop")
 	flag.BoolVar(&disableCacheOptimizations, "disable-cache-optimizations", false,
 		"Disable controller-runtime cache optimizations for troubleshooting. "+
 			"When enabled, caches all objects instead of filtering by labels. "+
@@ -243,7 +265,7 @@ func main() {
 				},
 			}
 		}(),
-		Controller: config.Controller{
+		Controller: ctrlCfg.Controller{
 			MaxConcurrentReconciles: 4,
 		},
 	})
@@ -265,14 +287,21 @@ func main() {
 	}
 
 	admission := &injectorwebhook.SidecarInjector{
-		SecretNamePrefix:     telegrafSecretNamePrefix,
-		TelegrafImage:        telegrafImage,
-		RequestsCPU:          telegrafRequestsCPU,
-		RequestsMemory:       telegrafRequestsMemory,
-		LimitsCPU:            telegrafLimitsCPU,
-		LimitsMemory:         telegrafLimitsMemory,
-		EnableNativeSidecars: enableNativeSidecars,
-		WatchConfig:          telegrafWatchConfig,
+		SecretNamePrefix:                 telegrafSecretNamePrefix,
+		TelegrafImage:                    telegrafImage,
+		RequestsCPU:                      telegrafRequestsCPU,
+		RequestsMemory:                   telegrafRequestsMemory,
+		LimitsCPU:                        telegrafLimitsCPU,
+		LimitsMemory:                     telegrafLimitsMemory,
+		EnableNativeSidecars:             enableNativeSidecars,
+		WatchConfig:                      telegrafWatchConfig,
+		SecurityRunAsUser:                &telegrafSecurityRunAsUser,
+		SecurityRunAsGroup:               &telegrafSecurityRunAsGroup,
+		SecurityRunAsNonRoot:             &telegrafSecurityRunAsNonRoot,
+		SecurityReadOnlyRootFilesystem:   &telegrafSecurityReadOnlyRootFS,
+		SecurityAllowPrivilegeEscalation: &telegrafSecurityAllowPrivEsc,
+		SecurityCapabilitiesAdd:          telegrafSecurityCapAdd,
+		SecurityCapabilitiesDrop:         telegrafSecurityCapDrop,
 	}
 
 	if err = admission.SetupWithManager(mgr); err != nil {

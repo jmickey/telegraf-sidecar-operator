@@ -41,6 +41,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	"github.com/jmickey/telegraf-sidecar-operator/internal/config"
 )
 
 var cfg *rest.Config
@@ -120,13 +122,20 @@ var _ = BeforeSuite(func() {
 	Expect(err).NotTo(HaveOccurred())
 
 	injector = &SidecarInjector{
-		SecretNamePrefix:     "telegraf",
-		TelegrafImage:        defaultTelegrafImage,
-		RequestsCPU:          defaultRequestsCPU,
-		RequestsMemory:       defaultRequestsMemory,
-		LimitsCPU:            defaultLimitsCPU,
-		LimitsMemory:         defaultLimitsMemory,
-		EnableNativeSidecars: false,
+		SecretNamePrefix:                 "telegraf",
+		TelegrafImage:                    defaultTelegrafImage,
+		RequestsCPU:                      defaultRequestsCPU,
+		RequestsMemory:                   defaultRequestsMemory,
+		LimitsCPU:                        defaultLimitsCPU,
+		LimitsMemory:                     defaultLimitsMemory,
+		EnableNativeSidecars:             false,
+		SecurityRunAsUser:                &config.OptionalInt64{},
+		SecurityRunAsGroup:               &config.OptionalInt64{},
+		SecurityRunAsNonRoot:             &config.OptionalBool{},
+		SecurityReadOnlyRootFilesystem:   &config.OptionalBool{},
+		SecurityAllowPrivilegeEscalation: &config.OptionalBool{},
+		SecurityCapabilitiesAdd:          "",
+		SecurityCapabilitiesDrop:         "",
 	}
 
 	err = injector.SetupWithManager(mgr)

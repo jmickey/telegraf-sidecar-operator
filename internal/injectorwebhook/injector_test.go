@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/jmickey/telegraf-sidecar-operator/internal/config"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
@@ -835,6 +836,106 @@ var _ = Describe("Sidecar injector webhook", func() {
 						// Requests should still be present
 						Expect(container.Resources.Requests.Cpu().String()).To(Equal(defaultRequestsCPU))
 						Expect(container.Resources.Requests.Memory().String()).To(Equal(defaultRequestsMemory))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should apply security context when configured globally", func() {
+				oldSecurityRunAsUser := injector.SecurityRunAsUser
+				oldSecurityRunAsGroup := injector.SecurityRunAsGroup
+				oldSecurityRunAsNonRoot := injector.SecurityRunAsNonRoot
+				oldSecurityReadOnlyRootFilesystem := injector.SecurityReadOnlyRootFilesystem
+				oldSecurityAllowPrivilegeEscalation := injector.SecurityAllowPrivilegeEscalation
+				oldSecurityCapabilitiesAdd := injector.SecurityCapabilitiesAdd
+				oldSecurityCapabilitiesDrop := injector.SecurityCapabilitiesDrop
+
+				runAsUser := &config.OptionalInt64{}
+				Expect(runAsUser.Set("100")).To(Succeed())
+				runAsGroup := &config.OptionalInt64{}
+				Expect(runAsGroup.Set("101")).To(Succeed())
+				runAsNonRoot := &config.OptionalBool{}
+				Expect(runAsNonRoot.Set("true")).To(Succeed())
+				readOnlyRootFilesystem := &config.OptionalBool{}
+				Expect(readOnlyRootFilesystem.Set("true")).To(Succeed())
+				allowPrivilegeEscalation := &config.OptionalBool{}
+				Expect(allowPrivilegeEscalation.Set("false")).To(Succeed())
+
+				injector.SecurityRunAsUser = runAsUser
+				injector.SecurityRunAsGroup = runAsGroup
+				injector.SecurityRunAsNonRoot = runAsNonRoot
+				injector.SecurityReadOnlyRootFilesystem = readOnlyRootFilesystem
+				injector.SecurityAllowPrivilegeEscalation = allowPrivilegeEscalation
+				injector.SecurityCapabilitiesAdd = "NET_RAW"
+				injector.SecurityCapabilitiesDrop = "ALL"
+
+				defer func() {
+					injector.SecurityRunAsUser = oldSecurityRunAsUser
+					injector.SecurityRunAsGroup = oldSecurityRunAsGroup
+					injector.SecurityRunAsNonRoot = oldSecurityRunAsNonRoot
+					injector.SecurityReadOnlyRootFilesystem = oldSecurityReadOnlyRootFilesystem
+					injector.SecurityAllowPrivilegeEscalation = oldSecurityAllowPrivilegeEscalation
+					injector.SecurityCapabilitiesAdd = oldSecurityCapabilitiesAdd
+					injector.SecurityCapabilitiesDrop = oldSecurityCapabilitiesDrop
+				}()
+
+				podName := "sidecar-security-context"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						Expect(container.SecurityContext).NotTo(BeNil())
+						Expect(container.SecurityContext.RunAsUser).NotTo(BeNil())
+						Expect(*container.SecurityContext.RunAsUser).To(Equal(int64(100)))
+						Expect(container.SecurityContext.RunAsGroup).NotTo(BeNil())
+						Expect(*container.SecurityContext.RunAsGroup).To(Equal(int64(101)))
+						Expect(container.SecurityContext.RunAsNonRoot).NotTo(BeNil())
+						Expect(*container.SecurityContext.RunAsNonRoot).To(BeTrue())
+						Expect(container.SecurityContext.ReadOnlyRootFilesystem).NotTo(BeNil())
+						Expect(*container.SecurityContext.ReadOnlyRootFilesystem).To(BeTrue())
+						Expect(container.SecurityContext.AllowPrivilegeEscalation).NotTo(BeNil())
+						Expect(*container.SecurityContext.AllowPrivilegeEscalation).To(BeFalse())
+						Expect(container.SecurityContext.Capabilities).NotTo(BeNil())
+						Expect(container.SecurityContext.Capabilities.Add).To(ContainElement(corev1.Capability("NET_RAW")))
+						Expect(container.SecurityContext.Capabilities.Drop).To(ContainElement(corev1.Capability("ALL")))
+					}
+				}
+				Expect(found).To(BeTrue())
+
+				cleanUpPod(pod.GetName())
+			})
+
+			It("Should not apply security context when not configured", func() {
+				podName := "sidecar-no-security-context"
+
+				pod := newTestPod(podName, map[string]string{
+					metadata.TelegrafConfigClassAnnotation: "default",
+				})
+				Expect(k8sClient.Create(testCtx, pod)).To(Succeed())
+
+				pod = &corev1.Pod{}
+				lookupKey := types.NamespacedName{Name: podName, Namespace: namespace}
+				Expect(k8sClient.Get(testCtx, lookupKey, pod)).To(Succeed())
+				Expect(len(pod.Spec.Containers)).To(Equal(2))
+
+				var found bool
+				for _, container := range pod.Spec.Containers {
+					if container.Name == containerName {
+						found = true
+						Expect(container.SecurityContext).To(BeNil())
 					}
 				}
 				Expect(found).To(BeTrue())
