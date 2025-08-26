@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/config"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/featuregate"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
@@ -95,8 +96,8 @@ var _ = Describe("Sidecar injector webhook", func() {
 			})
 
 			It("Should inject telegraf as init container and config volume with default settings when EnableNativeSidecars is true", func() {
-				oldVal := injector.EnableNativeSidecars
-				injector.EnableNativeSidecars = true
+				err := featuregate.Set("operator.nativesidecars", true)
+				Expect(err).NotTo(HaveOccurred())
 				podName := "sidecar-defaults"
 
 				pod := newTestPod(podName, map[string]string{
@@ -127,7 +128,8 @@ var _ = Describe("Sidecar injector webhook", func() {
 				Expect(found).To(BeTrue())
 
 				cleanUpPod(pod.GetName())
-				injector.EnableNativeSidecars = oldVal
+				err = featuregate.Set("operator.nativesidecars", false)
+				Expect(err).NotTo(HaveOccurred())
 			})
 
 			It("Should truncate the secret name if the pod name is too long", func() {

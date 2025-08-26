@@ -47,6 +47,7 @@ import (
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/config"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/controller"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/featuregate"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/injectorwebhook"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/version"
@@ -79,7 +80,6 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
-	var enableNativeSidecars bool
 
 	var telegrafClassesDirectory string
 	var telegrafDefaultClass string
@@ -124,8 +124,7 @@ func main() {
 		"If set the metrics endpoint is served securely")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers.")
-	flag.BoolVar(&enableNativeSidecars, "enable-native-sidecars", false,
-		"If set, kubernetes v1.28 native sidecars will be enabled.")
+	featuregate.RegisterFlags(flag.CommandLine)
 	flag.StringVar(&telegrafClassesDirectory, "telegraf-classes-directory", "/etc/config/classes",
 		"Path to the directory containing telegraf class files.")
 	flag.StringVar(&telegrafDefaultClass, "telegraf-default-class", "default",
@@ -287,13 +286,13 @@ func main() {
 	}
 
 	admission := &injectorwebhook.SidecarInjector{
-		SecretNamePrefix:                 telegrafSecretNamePrefix,
-		TelegrafImage:                    telegrafImage,
-		RequestsCPU:                      telegrafRequestsCPU,
-		RequestsMemory:                   telegrafRequestsMemory,
-		LimitsCPU:                        telegrafLimitsCPU,
-		LimitsMemory:                     telegrafLimitsMemory,
-		EnableNativeSidecars:             enableNativeSidecars,
+		SecretNamePrefix: telegrafSecretNamePrefix,
+		TelegrafImage:    telegrafImage,
+		RequestsCPU:      telegrafRequestsCPU,
+		RequestsMemory:   telegrafRequestsMemory,
+		LimitsCPU:        telegrafLimitsCPU,
+		LimitsMemory:     telegrafLimitsMemory,
+
 		WatchConfig:                      telegrafWatchConfig,
 		SecurityRunAsUser:                &telegrafSecurityRunAsUser,
 		SecurityRunAsGroup:               &telegrafSecurityRunAsGroup,
