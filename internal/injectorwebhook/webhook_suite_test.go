@@ -128,7 +128,6 @@ var _ = BeforeSuite(func() {
 		RequestsMemory:                   defaultRequestsMemory,
 		LimitsCPU:                        defaultLimitsCPU,
 		LimitsMemory:                     defaultLimitsMemory,
-		EnableNativeSidecars:             false,
 		SecurityRunAsUser:                &config.OptionalInt64{},
 		SecurityRunAsGroup:               &config.OptionalInt64{},
 		SecurityRunAsNonRoot:             &config.OptionalBool{},

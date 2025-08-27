@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"github.com/jmickey/telegraf-sidecar-operator/internal/config"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/featuregate"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
@@ -40,7 +41,6 @@ type SidecarInjector struct {
 	RequestsMemory                   string
 	LimitsCPU                        string
 	LimitsMemory                     string
-	EnableNativeSidecars             bool
 	SecurityRunAsUser                *config.OptionalInt64
 	SecurityRunAsGroup               *config.OptionalInt64
 	SecurityRunAsNonRoot             *config.OptionalBool
@@ -86,7 +86,7 @@ func (s *SidecarInjector) Default(ctx context.Context, obj runtime.Object) error
 	}
 	containerConfig.applyAnnotationOverrides(logf.IntoContext(ctx, log), pod.GetAnnotations())
 	container := containerConfig.buildContainerSpec()
-	if s.EnableNativeSidecars {
+	if featuregate.NativeSidecars.IsEnabled() {
 		policy := corev1.ContainerRestartPolicyAlways
 		container.RestartPolicy = &policy
 		pod.Spec.InitContainers = append(pod.Spec.InitContainers, container)
@@ -133,7 +133,7 @@ func (s *SidecarInjector) shouldInjectContainer(pod *corev1.Pod) bool {
 }
 
 func (s *SidecarInjector) hasTelegrafContainer(pod *corev1.Pod) bool {
-	if s.EnableNativeSidecars {
+	if featuregate.NativeSidecars.IsEnabled() {
 		for _, container := range pod.Spec.InitContainers {
 			if strings.Contains(container.Name, "telegraf") {
 				return true
@@ -146,7 +146,6 @@ func (s *SidecarInjector) hasTelegrafContainer(pod *corev1.Pod) bool {
 			}
 		}
 	}
-
 	return false
 }
 
