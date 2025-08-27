@@ -139,6 +139,30 @@ const (
 	//     servers = ["tcp://localhost:6379"]
 	TelegrafConfigRawInputAnnotation = Prefix + "/inputs"
 
+	// TelegrafConfigRawAggregatorsAnnotation can be used to configure
+	// raw telegraf aggregator TOML blocks. Can be provided as a multiline
+	// block of raw TOML configuration. Requires the telegraf.aggregators
+	// feature gate to be enabled.
+	// e.g.
+	// telegraf.influxdata.com/aggregators: |+
+	//   [[aggregators.basicstats]]
+	//     period = "30s"
+	//     stats = ["count", "sum", "mean"]
+	TelegrafConfigRawAggregatorsAnnotation = Prefix + "/aggregators"
+
+	// TelegrafConfigRawProcessorsAnnotation can be used to configure
+	// raw telegraf processor TOML blocks. Can be provided as a multiline
+	// block of raw TOML configuration. Requires the telegraf.processors
+	// feature gate to be enabled.
+	// e.g.
+	// telegraf.influxdata.com/processors: |+
+	//   [[processors.regex]]
+	//     [[processors.regex.tags]]
+	//       key = "service"
+	//       pattern = "^([^-]*)-.*"
+	//       replacement = "${1}"
+	TelegrafConfigRawProcessorsAnnotation = Prefix + "/processors"
+
 	// TelegrafConfigEnableInternalAnnotation enables the "internal"
 	// telegraf plugin. Any non-empty string value is accepted.
 	TelegrafConfigEnableInternalAnnotation = Prefix + "/internal"

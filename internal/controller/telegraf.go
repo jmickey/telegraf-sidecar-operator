@@ -25,6 +25,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/classdata"
+	"github.com/jmickey/telegraf-sidecar-operator/internal/featuregate"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 )
 
@@ -40,6 +41,8 @@ type annotationValues struct {
 	scheme           string
 	namepass         string
 	rawInput         string
+	rawAggregators   string
+	rawProcessors    string
 	ports            []uint16
 	interval         time.Duration
 	metricVersion    uint8
@@ -79,6 +82,8 @@ func newAnnotationValues(classDataHandler classdata.Handler, class string, enabl
 		interval:         defaultInterval,
 		enableInternal:   enableInternal,
 		rawInput:         "",
+		rawAggregators:   "",
+		rawProcessors:    "",
 		globalTags:       make(map[string]string),
 	}
 }
@@ -161,6 +166,14 @@ func (c *annotationValues) applyAnnotationOverrides(annotations map[string]strin
 		c.rawInput = override
 	}
 
+	if override, ok := annotations[metadata.TelegrafConfigRawAggregatorsAnnotation]; ok {
+		c.rawAggregators = override
+	}
+
+	if override, ok := annotations[metadata.TelegrafConfigRawProcessorsAnnotation]; ok {
+		c.rawProcessors = override
+	}
+
 	c.globalTags = metadata.GetAnnotationsWithPrefix(annotations,
 		metadata.TelegrafConfigGlobalTagLiteralPrefixAnnotation)
 
@@ -219,6 +232,42 @@ func (c *annotationValues) buildConfigData() (string, error) {
 
 		for k, v := range rawInputs.Inputs {
 			cfg.Inputs[k] = v
+		}
+	}
+
+	if c.rawAggregators != "" && featuregate.AggregatorAnnotations.IsEnabled() {
+		type rawAggregators struct {
+			Aggregators map[string]any `toml:"aggregators"`
+		}
+
+		rawAggs := rawAggregators{}
+		if err := toml.Unmarshal([]byte(strings.TrimSpace(c.rawAggregators)), &rawAggs); err != nil {
+			return "", fmt.Errorf("failed to unmarshal raw aggregators annotation data, error: %w", err)
+		}
+
+		if cfg.Aggregators == nil {
+			cfg.Aggregators = make(map[string]any)
+		}
+		for k, v := range rawAggs.Aggregators {
+			cfg.Aggregators[k] = v
+		}
+	}
+
+	if c.rawProcessors != "" && featuregate.ProcessorAnnotations.IsEnabled() {
+		type rawProcessors struct {
+			Processors map[string]any `toml:"processors"`
+		}
+
+		rawProcs := rawProcessors{}
+		if err := toml.Unmarshal([]byte(strings.TrimSpace(c.rawProcessors)), &rawProcs); err != nil {
+			return "", fmt.Errorf("failed to unmarshal raw processors annotation data, error: %w", err)
+		}
+
+		if cfg.Processors == nil {
+			cfg.Processors = make(map[string]any)
+		}
+		for k, v := range rawProcs.Processors {
+			cfg.Processors[k] = v
 		}
 	}
 
