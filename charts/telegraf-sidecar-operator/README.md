@@ -37,6 +37,7 @@ The command removes all the Kubernetes components associated with the chart and 
 |-----|------|---------|-------------|
 | affinity | object | `{}` |  |
 | commonLabels | object | `{}` | Common labels to be added to all resources. |
+| featureGates | list | `[]` | List of feature gates to enable. Available gates: operator.nativesidecars |
 | fullnameOverride | string | `""` |  |
 | image.pullPolicy | string | `"IfNotPresent"` |  |
 | image.repository | string | `"docker.io/jmickey/telegraf-sidecar-operator"` |  |
@@ -48,6 +49,7 @@ The command removes all the Kubernetes components associated with the chart and 
 | operator.classes.default | string | `"default"` | The default Telegraf "class" to be used when configuring sidecar containers. |
 | operator.classes.secretName | string | `"telegraf-classes"` | The name of the telegraf classes secret. |
 | operator.enableInternalPlugin | bool | `true` | Specify if the `[[inputs.internal]]` plugin should be enabled by default in telegraf sidecar containers. |
+| operator.extraArgs | list | `[]` | Additional command line arguments to pass to the operator |
 | operator.logEncoding | string | `"console"` | Configure the log line encoding for the operator. Can be one of `json` or `console`. |
 | operator.logLevel | string | `"info"` | Configure the logging level for the operator. Can be one of `debug`, `info`, `error`. |
 | operator.secretNamePrefix | string | `"telegraf-config"` | Set the telegraf configuration secret name prefix, defaults to 'telegraf-config'. |
@@ -62,7 +64,8 @@ The command removes all the Kubernetes components associated with the chart and 
 | securityContext.runAsNonRoot | bool | `true` |  |
 | securityContext.seccompProfile.type | string | `"RuntimeDefault"` |  |
 | serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
-| sidecar.enableNativeSidecars | bool | `false` | Enable the use of native sidecar containers introduced in Kubernetes 1.28+ https://kubernetes.io/blog/2023/08/25/native-sidecar-containers/ |
 | sidecar.image | string | `"docker.io/library/telegraf:1.30-alpine"` | The Telegraf container image to use for sidecar containers |
 | sidecar.resources | object | `{"limits":{"cpu":"100m","memory":"128Mi"},"requests":{"cpu":"10m","memory":"56Mi"}}` | Default resources (request/limits) for sidecar containers |
+| sidecar.securityContext | object | `{}` | Security context configuration for sidecar containers |
+| sidecar.watchConfig | string | `""` | Enable telegraf `--watch-config` flag. Valid values: 'inotify', 'poll'. Empty string to disable. |
 | tolerations | list | `[]` |  |

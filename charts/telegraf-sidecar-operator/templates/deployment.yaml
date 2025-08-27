@@ -55,10 +55,41 @@ spec:
             - "--telegraf-image={{ .Values.sidecar.image }}"
             - "--telegraf-requests-cpu={{ .Values.sidecar.resources.requests.cpu }}"
             - "--telegraf-requests-memory={{ .Values.sidecar.resources.requests.memory }}"
+            {{- if .Values.sidecar.resources.limits.cpu }}
             - "--telegraf-limits-cpu={{ .Values.sidecar.resources.limits.cpu }}"
+            {{- end }}
             - "--telegraf-limits-memory={{ .Values.sidecar.resources.limits.memory }}"
-            {{- if .Values.sidecar.enableNativeSidecars }}
-            - "--enable-native-sidecars"
+            {{- if .Values.sidecar.watchConfig }}
+            - "--telegraf-watch-config={{ .Values.sidecar.watchConfig }}"
+            {{- end }}
+            {{- if .Values.featureGates }}
+            - "--feature-gates={{ join "," .Values.featureGates }}"
+            {{- end }}
+            {{- with .Values.sidecar.securityContext }}
+            {{- if .runAsUser }}
+            - "--telegraf-security-run-as-user={{ .runAsUser }}"
+            {{- end }}
+            {{- if .runAsGroup }}
+            - "--telegraf-security-run-as-group={{ .runAsGroup }}"
+            {{- end }}
+            {{- if hasKey . "runAsNonRoot" }}
+            - "--telegraf-security-run-as-non-root={{ .runAsNonRoot }}"
+            {{- end }}
+            {{- if hasKey . "readOnlyRootFilesystem" }}
+            - "--telegraf-security-readonly-rootfs={{ .readOnlyRootFilesystem }}"
+            {{- end }}
+            {{- if hasKey . "allowPrivilegeEscalation" }}
+            - "--telegraf-security-allow-privilege-escalation={{ .allowPrivilegeEscalation }}"
+            {{- end }}
+            {{- if .capabilities.add }}
+            - "--telegraf-security-capabilities-add={{ join "," .capabilities.add }}"
+            {{- end }}
+            {{- if .capabilities.drop }}
+            - "--telegraf-security-capabilities-drop={{ join "," .capabilities.drop }}"
+            {{- end }}
+            {{- end }}
+            {{- with .Values.operator.extraArgs }}
+            {{- toYaml . | nindent 12 }}
             {{- end }}
           ports:
             - name: http
