@@ -24,3 +24,19 @@ package featuregate
 var NativeSidecars = Register("operator.nativesidecars",
 	"Use Kubernetes 1.28+ native sidecar containers instead of regular containers",
 	false)
+
+// AggregatorAnnotations enables telegraf aggregator plugin configuration via pod annotations.
+//
+// When enabled, pods can use the telegraf.influxdata.com/aggregators annotation
+// to specify raw TOML configuration for aggregator plugins.
+var AggregatorAnnotations = Register("telegraf.aggregators",
+	"Enable telegraf aggregator plugin configuration via pod annotations",
+	false)
+
+// ProcessorAnnotations enables telegraf processor plugin configuration via pod annotations.
+//
+// When enabled, pods can use the telegraf.influxdata.com/processors annotation
+// to specify raw TOML configuration for processor plugins.
+var ProcessorAnnotations = Register("telegraf.processors",
+	"Enable telegraf processor plugin configuration via pod annotations",
+	false)

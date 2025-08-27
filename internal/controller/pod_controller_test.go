@@ -22,6 +22,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jmickey/telegraf-sidecar-operator/internal/featuregate"
 	"github.com/jmickey/telegraf-sidecar-operator/internal/metadata"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -444,6 +445,259 @@ var _ = Describe("Pod Controller", func() {
 					}, duration, interval).Should(BeTrue())
 
 					cleanUpPod(pod.GetName())
+				})
+			})
+
+			Context("With aggregator annotations feature gate", func() {
+				BeforeEach(func() {
+					err := featuregate.Set("telegraf.aggregators", true)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				AfterEach(func() {
+					err := featuregate.Set("telegraf.aggregators", false)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				It("Should reconcile successfully with aggregator annotation when feature gate is enabled", func() {
+					pod := newTestPod(
+						"aggregator-enabled",
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-aggregator-enabled",
+						},
+						map[string]string{
+							metadata.TelegrafConfigRawAggregatorsAnnotation: `
+								[[aggregators.basicstats]]
+									period = "30s"
+									stats = ["count", "sum", "mean"]
+							`,
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/aggregator-enabled.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should not include aggregator config when feature gate is disabled", func() {
+					err := featuregate.Set("telegraf.aggregators", false)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					pod := newTestPod(
+						"aggregator-disabled",
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-aggregator-disabled",
+						},
+						map[string]string{
+							metadata.TelegrafConfigRawAggregatorsAnnotation: `
+								[[aggregators.basicstats]]
+									period = "30s"
+									stats = ["count", "sum", "mean"]
+							`,
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/minimum-config.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+			})
+
+			Context("With processor annotations feature gate", func() {
+				BeforeEach(func() {
+					err := featuregate.Set("telegraf.processors", true)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				AfterEach(func() {
+					err := featuregate.Set("telegraf.processors", false)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				It("Should reconcile successfully with processor annotation when feature gate is enabled", func() {
+					pod := newTestPod(
+						"processor-enabled",
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-processor-enabled",
+						},
+						map[string]string{
+							metadata.TelegrafConfigRawProcessorsAnnotation: `
+								[[processors.regex]]
+									[[processors.regex.tags]]
+										key = "service"
+										pattern = "^([^-]*)-.*"
+										replacement = "${1}"
+							`,
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/processor-enabled.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+
+				It("Should not include processor config when feature gate is disabled", func() {
+					err := featuregate.Set("telegraf.processors", false)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					pod := newTestPod(
+						"processor-disabled",
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-processor-disabled",
+						},
+						map[string]string{
+							metadata.TelegrafConfigRawProcessorsAnnotation: `
+								[[processors.regex]]
+									[[processors.regex.tags]]
+										key = "service"
+										pattern = "^([^-]*)-.*"
+										replacement = "${1}"
+							`,
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/minimum-config.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
+				})
+			})
+
+			Context("With both aggregator and processor feature gates enabled", func() {
+				BeforeEach(func() {
+					err := featuregate.Set("telegraf.aggregators", true)
+					Expect(err).ShouldNot(HaveOccurred())
+					err = featuregate.Set("telegraf.processors", true)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				AfterEach(func() {
+					err := featuregate.Set("telegraf.aggregators", false)
+					Expect(err).ShouldNot(HaveOccurred())
+					err = featuregate.Set("telegraf.processors", false)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				It("Should reconcile successfully with both aggregator and processor annotations", func() {
+					pod := newTestPod(
+						"both-features-enabled",
+						map[string]string{
+							metadata.SidecarInjectedLabel:   "true",
+							metadata.SidecarSecretNameLabel: "telegraf-config-both-features-enabled",
+						},
+						map[string]string{
+							metadata.TelegrafConfigMetricsPortsAnnotation: "8080",
+							metadata.TelegrafConfigRawAggregatorsAnnotation: `
+								[[aggregators.basicstats]]
+									period = "30s"
+									stats = ["count", "sum", "mean"]
+							`,
+							metadata.TelegrafConfigRawProcessorsAnnotation: `
+								[[processors.regex]]
+									[[processors.regex.tags]]
+										key = "service"
+										pattern = "^([^-]*)-.*"
+										replacement = "${1}"
+							`,
+						},
+					)
+					Expect(k8sClient.Create(testCtx, pod)).Should(Succeed())
+					Eventually(func() error {
+						p := &corev1.Pod{}
+						key := types.NamespacedName{Name: pod.GetName(), Namespace: pod.GetNamespace()}
+						return k8sClient.Get(testCtx, key, p)
+					}, timeout, interval).Should(Succeed())
+
+					secret := &corev1.Secret{}
+					Eventually(func() error {
+						key := types.NamespacedName{
+							Name:      pod.GetLabels()[metadata.SidecarSecretNameLabel],
+							Namespace: pod.GetNamespace(),
+						}
+						return k8sClient.Get(testCtx, key, secret)
+					}, timeout, interval).Should(Succeed())
+
+					fixture, err := os.ReadFile("../../config/testdata/fixtures/both-features-enabled.toml")
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(secret.Data["telegraf.conf"])).Should(Equal(string(fixture)))
+
+					cleanUpPod(pod.GetName())
+					cleanUpSecret(secret.GetName())
 				})
 			})
 		})
