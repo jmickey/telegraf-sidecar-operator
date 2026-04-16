@@ -16,7 +16,7 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/secret-classes.yaml") . | sha256sum }}
         kubectl.kubernetes.io/default-container: {{ .Chart.Name }}
       {{- with .Values.podAnnotations }}
-        {{- toYaml . | nindent 8 }}
+        {{- tpl (toYaml .) $ | nindent 8 }}
       {{- end }}
       labels:
         app.kubernetes.io/component: operator
