@@ -1,8 +1,12 @@
+{{- include "_helpers.validateWebhookTLS" . }}
+{{- $tls := .Values.mutatingWebhook.tls }}
+{{- if eq $tls.method "helm" }}
 {{- $caPrefix := printf "%s-ca" .Release.Name }}
 {{- $ca := genCA $caPrefix 3650 }}
 {{- $cn := (include "_helpers.fullname" .) }}
 {{- $altNames := list ( printf "%s.%s" (include "_helpers.fullname" .) .Release.Namespace ) ( printf "%s.%s.svc" (include "_helpers.fullname" .) .Release.Namespace ) }}
 {{- $cert := genSignedCert $cn nil $altNames 3650 $ca }}
+{{- $_ := set $ "webhookCABundle" ($ca.Cert | b64enc) }}
 ---
 apiVersion: v1
 kind: Secret
@@ -17,6 +21,22 @@ metadata:
 data:
   tls.crt: {{ $cert.Cert | b64enc }}
   tls.key: {{ $cert.Key | b64enc }}
+{{- else if and (eq $tls.method "custom") (not $tls.custom.existingSecret) }}
+{{- $_ := set $ "webhookCABundle" ($tls.custom.caBundle | b64enc) }}
+---
+apiVersion: v1
+kind: Secret
+type: kubernetes.io/tls
+metadata:
+  name: {{ include "_helpers.fullname" . }}-tls
+  labels:
+    {{- include "_helpers.labels" . | nindent 4 }}
+data:
+  tls.crt: {{ $tls.custom.cert | b64enc }}
+  tls.key: {{ $tls.custom.key | b64enc }}
+{{- else if eq $tls.method "custom" }}
+{{- $_ := set $ "webhookCABundle" ($tls.custom.caBundle | b64enc) }}
+{{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -25,6 +45,10 @@ metadata:
     app.kubernetes.io/component: webhook
     {{- include "_helpers.labels" . | nindent 4 }}
   name: {{ include "_helpers.fullname" . }}
+  {{- if eq $tls.method "certManager" }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "_helpers.fullname" . }}
+  {{- end }}
 webhooks:
   - admissionReviewVersions:
       - v1
@@ -33,7 +57,9 @@ webhooks:
         name: {{ include "_helpers.fullname" . }}
         namespace: {{ .Release.Namespace }}
         path: /mutate--v1-pod
-      caBundle: {{ $ca.Cert | b64enc }}
+      {{- if ne $tls.method "certManager" }}
+      caBundle: {{ $.webhookCABundle }}
+      {{- end }}
     failurePolicy: Ignore
     name: telegraf.mickey.dev
     {{- with .Values.mutatingWebhook.namespaceSelector }}

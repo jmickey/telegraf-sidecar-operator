@@ -53,3 +53,24 @@ Selector labels
 app.kubernetes.io/name: {{ include "_helpers.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Validate the webhook TLS configuration.
+*/}}
+{{- define "_helpers.validateWebhookTLS" -}}
+{{- $tls := .Values.mutatingWebhook.tls }}
+{{- $valid := list "helm" "certManager" "custom" }}
+{{- if not (has $tls.method $valid) }}
+{{- fail (printf "mutatingWebhook.tls.method must be one of %s, got %q" (join ", " $valid) $tls.method) }}
+{{- end }}
+{{- if eq $tls.method "custom" }}
+{{- if not $tls.custom.existingSecret }}
+{{- if or (not $tls.custom.cert) (not $tls.custom.key) }}
+{{- fail "mutatingWebhook.tls.method=custom requires either custom.existingSecret, or both custom.cert and custom.key" }}
+{{- end }}
+{{- end }}
+{{- if not $tls.custom.caBundle }}
+{{- fail "mutatingWebhook.tls.method=custom requires custom.caBundle" }}
+{{- end }}
+{{- end }}
+{{- end }}
