@@ -90,6 +90,25 @@ resources:
 mutatingWebhook:
   # -- Configure the namespace selection to call the webhook
   namespaceSelector: {}
+  tls:
+    # -- Webhook cert provisioning: `helm` (self-signed, default), `certManager`, or `custom`.
+    method: helm
+    certManager:
+      # -- Existing Issuer/ClusterIssuer (`{name, kind, group}`). Empty = chart creates a self-signed CA.
+      issuerRef: {}
+      # -- Certificate validity duration.
+      duration: 8760h
+      # -- Renew this long before expiry (must be `< duration`).
+      renewBefore: 720h
+    custom:
+      # -- Use a pre-existing `kubernetes.io/tls` Secret; takes precedence over `cert`/`key`.
+      existingSecret: ""
+      # -- PEM CA bundle for the webhook `caBundle`.
+      caBundle: ""
+      # -- PEM server certificate (used when `existingSecret` is empty).
+      cert: ""
+      # -- PEM server private key (used when `existingSecret` is empty).
+      key: ""
 nodeSelector: {}
 tolerations: []
 affinity: {}

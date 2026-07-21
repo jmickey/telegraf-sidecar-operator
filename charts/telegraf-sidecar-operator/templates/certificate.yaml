@@ -1,0 +1,44 @@
+{{- if eq .Values.mutatingWebhook.tls.method "certManager" }}
+{{- $cm := .Values.mutatingWebhook.tls.certManager }}
+{{- $fullname := include "_helpers.fullname" . }}
+{{- if not $cm.issuerRef }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ $fullname }}-selfsigned
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "_helpers.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+{{- end }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ $fullname }}
+  labels:
+    app.kubernetes.io/component: webhook
+    {{- include "_helpers.labels" . | nindent 4 }}
+spec:
+  secretName: {{ $fullname }}-tls
+  commonName: {{ $fullname }}
+  dnsNames:
+    - {{ printf "%s.%s" $fullname .Release.Namespace }}
+    - {{ printf "%s.%s.svc" $fullname .Release.Namespace }}
+    - {{ printf "%s.%s.svc.cluster.local" $fullname .Release.Namespace }}
+  {{- with $cm.duration }}
+  duration: {{ . }}
+  {{- end }}
+  {{- with $cm.renewBefore }}
+  renewBefore: {{ . }}
+  {{- end }}
+  issuerRef:
+    {{- if $cm.issuerRef }}
+    {{- toYaml $cm.issuerRef | nindent 4 }}
+    {{- else }}
+    name: {{ $fullname }}-selfsigned
+    kind: Issuer
+    group: cert-manager.io
+    {{- end }}
+{{- end }}
